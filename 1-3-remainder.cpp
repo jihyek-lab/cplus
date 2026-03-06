@@ -5,6 +5,6 @@ int main() {
 	int m = 4;
 	int remainder = n % m;
 
-	std::cout << n << "¸¦ " << m << "·Î ³ª´« ³ª¸ÓÁö´Â " << remainder << "ÀÔ´Ï´Ù.\n";
+	std::cout << n << "ë¥¼ " << m << "ë¡œ ë‚˜ëˆˆ ë‚˜ë¨¸ì§€ëŠ” " << remainder << "ì…ë‹ˆë‹¤.\n";
 	return 0;
 }
