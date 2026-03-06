@@ -1,0 +1,571 @@
+%=========================================================
+% C++ Chapter 6 Lab Handout (Verbatim Korean-safe)
+% Topic: Function Overloading & static Members
+% Compile with XeLaTeX
+%=========================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{fontspec}
+\usepackage{kotex}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{fvextra}
+
+% ---------- Fonts ----------
+% If D2Coding isn't available, try: NanumGothicCoding, Noto Sans Mono CJK KR
+\setmonofont{D2Coding}[Scale=MatchLowercase]
+
+% ---------- Colors ----------
+\definecolor{CodeBg}{RGB}{248,248,248}
+\definecolor{CodeFrame}{RGB}{220,220,220}
+\definecolor{Accent}{RGB}{40,80,160}
+
+% ---------- Header ----------
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\textbf{C++ 6장 실습}}
+\rhead{\textbf{함수 중복과 static 멤버}}
+\cfoot{\thepage}
+
+\titleformat{\section}{\Large\bfseries\color{Accent}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{0.6em}{}
+
+% ---------- Boxes ----------
+\newtcolorbox{GoalBox}{
+  colback=CodeBg,
+  colframe=CodeFrame,
+  arc=3pt,
+  boxrule=0.8pt,
+  left=10pt,right=10pt,top=8pt,bottom=8pt
+}
+\newcommand{\filetag}[1]{\texttt{\color{Accent}#1}}
+
+% ---------- Code block environment (Unicode-safe) ----------
+\DefineVerbatimEnvironment{cppcode}{Verbatim}{
+  fontsize=\small,
+  frame=single,
+  framerule=0.6pt,
+  rulecolor=\color{CodeFrame},
+  numbers=left,
+  numbersep=8pt,
+  baselinestretch=1,
+  breaklines=true,
+  breaksymbolleft=,
+  breaksymbolright=,
+  commandchars=\\\{\},
+  xleftmargin=1.5em
+}
+
+\begin{document}
+
+\begin{center}
+  {\LARGE \textbf{C++ 6장 실습: 함수 중복과 static 멤버}}\\
+  \vspace{6pt}
+  {\large (overloading / default parameter / ambiguity / static member variable \& function)}
+\end{center}
+
+\vspace{8pt}
+
+\section*{학습 목표}
+\begin{GoalBox}
+\begin{enumerate}[leftmargin=18pt]
+  \item 함수 중복의 개념을 이해하고, 중복 함수를 작성할 수 있다.
+  \item 디폴트 매개 변수를 이해하고 작성할 수 있다.
+  \item 함수 중복 시 발생하는 모호성의 경우를 판별할 수 있다.
+  \item static 속성으로 선언된 멤버의 특성을 이해하고, static 속성을 활용할 수 있다.
+\end{enumerate}
+\end{GoalBox}
+
+\section*{실습 운영 규칙}
+\begin{itemize}[leftmargin=18pt]
+  \item 각 실습은 보통 \texttt{main()}을 포함하여 \textbf{독립 실행} 가능합니다.
+  \item \textbf{오버로딩 실패/모호성} 예제는 일부러 컴파일 에러가 나도록 만든 코드가 있습니다.
+        이런 코드는 주석으로 \texttt{// (에러 확인)} 표기했습니다.
+  \item static 멤버 변수는 \textbf{클래스 밖에서 1회 정의}가 필요합니다(링크 오류 방지).
+\end{itemize}
+
+\tableofcontents
+\newpage
+
+\section{함수 중복 기본: ``이름 같고 매개변수 다르면 OK''}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 함수 중복(오버로딩): \textbf{같은 이름}의 함수가 공존.
+  \item 구분 기준: \textbf{매개변수의 타입/개수}. \textbf{리턴 타입은 중복과 무관}.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L1\_SumOverloadOK.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+int sum(int a, int b) { return a + b; }
+int sum(int a, int b, int c) { return a + b + c; }
+double sum(double a, double b) { return a + b; }
+
+int main() {
+    cout << sum(2, 6) << "\n";
+    cout << sum(2, 5, 33) << "\n";
+    cout << sum(12.5, 33.6) << "\n";
+}
+\end{cppcode}
+
+\section{오버로딩 실패 1: 리턴 타입만 다르면 안 됨}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 아래 두 함수는 매개변수가 완전히 같아서 \textbf{호출 시 구분 불가}.
+  \item 따라서 ``리턴 타입만 다르게'' 해서 오버로딩은 \textbf{불가능}.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L2\_OverloadFailReturnType.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+// (에러 확인) 리턴 타입만 다르면 오버로딩 불가
+int sum(int a, int b) { return a + b; }
+double sum(int a, int b) { return (double)(a + b); }
+
+int main() {
+    cout << sum(2, 5) << "\n";
+}
+\end{cppcode}
+
+\section{예제 6-1: big() 오버로딩(값 vs 배열)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 같은 이름(big)으로 ``두 정수 중 큰 값''과 ``배열에서 최대값''을 제공.
+  \item 호출 형태가 달라서 컴파일러가 자동 구분.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L3\_BigOverload.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+int big(int a, int b) {
+    return (a > b) ? a : b;
+}
+
+int big(int a[], int size) {
+    int res = a[0];
+    for (int i = 1; i < size; i++)
+        if (res < a[i]) res = a[i];
+    return res;
+}
+
+int main() {
+    int array[5] = {1, 9, -2, 8, 6};
+    cout << big(2, 3) << "\n";
+    cout << big(array, 5) << "\n";
+}
+\end{cppcode}
+
+\section{예제 6-2: sum() 오버로딩(구간합 vs 0부터)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item \texttt{sum(a,b)}: a~b 합
+  \item \texttt{sum(a)}: 0~a 합
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L4\_SumRangeOverload.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+int sum(int a, int b) {
+    int s = 0;
+    for (int i = a; i <= b; i++) s += i;
+    return s;
+}
+
+int sum(int a) {
+    int s = 0;
+    for (int i = 0; i <= a; i++) s += i;
+    return s;
+}
+
+int main() {
+    cout << sum(3, 5) << "\n";
+    cout << sum(3) << "\n";
+    cout << sum(100) << "\n";
+}
+\end{cppcode}
+
+\section{디폴트 매개 변수: ``값이 안 오면 기본값''}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 선언 형태: \texttt{type param = defaultValue}
+  \item 호출에서 해당 인수를 생략하면 기본값이 자동 전달됨.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L5\_DefaultParamBasic.cpp}
+\begin{cppcode}
+#include <iostream>
+#include <string>
+using namespace std;
+
+void star(int a = 5);
+void msg(int id, string text = "");
+
+void star(int a) {
+    for (int i = 0; i < a; i++) cout << '*';
+    cout << "\n";
+}
+void msg(int id, string text) {
+    cout << id << " " << text << "\n";
+}
+
+int main() {
+    star();
+    star(10);
+    msg(10);
+    msg(10, "Hello");
+}
+\end{cppcode}
+
+\section{디폴트 매개 변수 제약: ``뒤쪽부터''만 가능}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 디폴트 매개 변수는 \textbf{끝 쪽에 몰려} 선언되어야 함.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L6\_DefaultParamRules.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+// void calc(int a, int b=5, int c, int d=0); // (에러 확인)
+
+void calc(int a, int b = 5, int c = 0, int d = 0) {
+    cout << a << "," << b << "," << c << "," << d << "\n";
+}
+
+int main() {
+    calc(10);
+    calc(10, 5);
+    calc(10, 5, 20);
+    calc(10, 5, 20, 30);
+}
+\end{cppcode}
+
+\section{오버로딩/디폴트로 인한 모호성}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 중복 함수와 디폴트 매개변수 함수를 함께 두면 호출이 모호해질 수 있음.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L7\_AmbiguityDefaultParam.cpp}
+\begin{cppcode}
+#include <iostream>
+#include <string>
+using namespace std;
+
+void msg(int id) { cout << id << "\n"; }
+void msg(int id, string s = "") { cout << id << ":" << s << "\n"; }
+
+int main() {
+    msg(5, "Good Morning");
+    // msg(6); // (에러 확인) 호출 모호
+}
+\end{cppcode}
+
+\section{형 변환으로 인한 모호성}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item int 인수는 float/double 중 어디로 변환할지 모호할 수 있음.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L8\_AmbiguityCast.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+float square(float a) { return a * a; }
+double square(double a) { return a * a; }
+
+int main() {
+    cout << square(3.0) << "\n";
+    // cout << square(3) << "\n"; // (에러 확인)
+}
+\end{cppcode}
+
+\section{참조 매개변수로 인한 모호성}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 값/참조 오버로딩은 호출이 구분되지 않아 모호해질 수 있음.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L9\_AmbiguityRefParam.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+int add(int a, int b) { return a + b; }
+int add(int a, int& b) { b = b + a; return b; }
+
+int main() {
+    int s = 10, t = 20;
+    // cout << add(s, t) << "\n"; // (에러 확인)
+}
+\end{cppcode}
+
+\section{디폴트로 중복 간소화: fillLine()}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 디폴트 매개변수로 여러 중복 함수를 1개로 합칠 수 있음.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L10\_FillLineDefault.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+void fillLine(int n = 25, char c = '*') {
+    for (int i = 0; i < n; i++) cout << c;
+    cout << "\n";
+}
+
+int main() {
+    fillLine();
+    fillLine(10, '%');
+}
+\end{cppcode}
+
+\section{생성자 중복 간소화: MyVector(int n=100)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 기본 생성자/매개변수 생성자를 디폴트 매개변수 생성자 1개로 간소화.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L11\_MyVectorCtorDefault.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+class MyVector {
+    int* p;
+    int size;
+public:
+    MyVector(int n = 100) {
+        p = new int[n];
+        size = n;
+    }
+    ~MyVector() { delete[] p; }
+    int getSize() const { return size; }
+};
+
+int main() {
+    MyVector* v1 = new MyVector();
+    MyVector* v2 = new MyVector(1024);
+    cout << v1->getSize() << "\n";
+    cout << v2->getSize() << "\n";
+    delete v1;
+    delete v2;
+}
+\end{cppcode}
+
+\section{static 멤버 기본 + 외부 정의(링크 오류 방지)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item static 멤버 변수는 클래스 밖에서 1회 정의해야 함.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L12\_StaticMemberBasic.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+class Person {
+public:
+    int money;
+    void addMoney(int money) { this->money += money; }
+
+    static int sharedMoney;
+    static void addShared(int n) { sharedMoney += n; }
+};
+
+int Person::sharedMoney = 10;
+
+int main() {
+    Person han;
+    han.money = 100;
+    han.sharedMoney = 200;
+
+    Person lee;
+    lee.money = 150;
+    lee.addMoney(200);
+    lee.addShared(200);
+
+    cout << han.money << " " << lee.money << "\n";
+    cout << han.sharedMoney << " " << lee.sharedMoney << "\n";
+}
+\end{cppcode}
+
+\section{static 접근: 클래스명:: vs 객체}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item static은 \texttt{ClassName::}로 접근 가능, non-static은 불가.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L13\_StaticAccessClassScope.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+class Person {
+public:
+    double money;
+    static int sharedMoney;
+    static void addShared(int n) { sharedMoney += n; }
+};
+int Person::sharedMoney = 10;
+
+int main() {
+    Person::addShared(50);
+    cout << Person::sharedMoney << "\n";
+
+    Person han;
+    han.money = 100;
+    han.sharedMoney = 200;
+
+    Person::sharedMoney = 300;
+    Person::addShared(100);
+
+    cout << han.money << " " << Person::sharedMoney << "\n";
+}
+\end{cppcode}
+
+\section{static으로 전역 함수 캡슐화: Math}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 관련 전역 함수를 클래스로 묶어 사용성을 개선.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L14\_MathStaticClass.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+class Math {
+public:
+    static int abs(int a) { return (a > 0) ? a : -a; }
+    static int max(int a, int b) { return (a > b) ? a : b; }
+    static int min(int a, int b) { return (a > b) ? b : a; }
+};
+
+int main() {
+    cout << Math::abs(-5) << "\n";
+    cout << Math::max(10, 8) << "\n";
+    cout << Math::min(-3, -8) << "\n";
+}
+\end{cppcode}
+
+\section{static으로 객체 개수 세기: numOfCircles}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item new[] / delete[]가 생성자/소멸자 호출 횟수에 영향을 준다.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L15\_CountObjectsStatic.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+class Circle {
+private:
+    static int numOfCircles;
+    int radius;
+public:
+    Circle(int r = 1) : radius(r) { numOfCircles++; }
+    ~Circle() { numOfCircles--; }
+    static int getNumOfCircles() { return numOfCircles; }
+};
+int Circle::numOfCircles = 0;
+
+int main() {
+    Circle* p = new Circle[10];
+    cout << "생존하고 있는 원의 개수 = " << Circle::getNumOfCircles() << "\n";
+    delete[] p;
+    cout << "생존하고 있는 원의 개수 = " << Circle::getNumOfCircles() << "\n";
+
+    Circle a;
+    cout << "생존하고 있는 원의 개수 = " << Circle::getNumOfCircles() << "\n";
+    Circle b;
+    cout << "생존하고 있는 원의 개수 = " << Circle::getNumOfCircles() << "\n";
+}
+\end{cppcode}
+
+\section{static 함수 제한: this/non-static 접근 불가}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item static 함수는 객체가 없어도 호출 가능 $\rightarrow$ this 없음.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L16\_StaticCannotAccessThis.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+class PersonError {
+    int money;
+public:
+    // static int getMoney() { return money; } // (에러 확인)
+    void setMoney(int money) { this->money = money; }
+};
+
+int main() {
+    PersonError e;
+    e.setMoney(100);
+    cout << "OK\n";
+}
+\end{cppcode}
+
+\section*{마무리 체크리스트}
+\begin{GoalBox}
+\begin{itemize}[leftmargin=18pt]
+  \item 오버로딩 성공/실패 조건을 정확히 말할 수 있는가?
+  \item 디폴트 매개변수 규칙(뒤쪽부터)과 모호성 사례를 설명할 수 있는가?
+  \item static 멤버 변수 외부 정의가 왜 필요한가(링크 오류)?
+  \item static 멤버 함수의 제한(this/non-static 접근 불가)을 설명할 수 있는가?
+\end{itemize}
+\end{GoalBox}
+
+\end{document}

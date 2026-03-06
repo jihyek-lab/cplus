@@ -1,0 +1,684 @@
+%=========================================================
+% C++ Chapter 10 Lab Handout (Verbatim Korean-safe)
+% Topic: Templates & STL (vector/map/iterator/algorithm)
+% Compile with XeLaTeX
+%=========================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{fontspec}
+\usepackage{kotex}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{fvextra}
+
+% ---------- Fonts ----------
+% If D2Coding isn't available, try: NanumGothicCoding, Noto Sans Mono CJK KR
+\setmonofont{D2Coding}[Scale=MatchLowercase]
+
+% ---------- Colors ----------
+\definecolor{CodeBg}{RGB}{248,248,248}
+\definecolor{CodeFrame}{RGB}{220,220,220}
+\definecolor{Accent}{RGB}{40,80,160}
+
+% ---------- Header ----------
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\textbf{C++ 10장 실습}}
+\rhead{\textbf{템플릿과 STL}}
+\cfoot{\thepage}
+
+\titleformat{\section}{\Large\bfseries\color{Accent}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{0.6em}{}
+
+% ---------- Boxes ----------
+\newtcolorbox{GoalBox}{
+  colback=CodeBg,
+  colframe=CodeFrame,
+  arc=3pt,
+  boxrule=0.8pt,
+  left=10pt,right=10pt,top=8pt,bottom=8pt
+}
+\newcommand{\filetag}[1]{\texttt{\color{Accent}#1}}
+
+% ---------- Code block environment (Unicode-safe) ----------
+\DefineVerbatimEnvironment{cppcode}{Verbatim}{
+  fontsize=\small,
+  frame=single,
+  framerule=0.6pt,
+  rulecolor=\color{CodeFrame},
+  numbers=left,
+  numbersep=8pt,
+  baselinestretch=1,
+  breaklines=true,
+  breaksymbolleft=,
+  breaksymbolright=,
+  commandchars=\\\{\},
+  xleftmargin=1.5em
+}
+
+\begin{document}
+
+\begin{center}
+  {\LARGE \textbf{C++ 10장 실습: 템플릿과 표준 템플릿 라이브러리(STL)}}\\
+  \vspace{6pt}
+  {\large (function/class templates, specialization, STL containers, iterators, algorithms)}
+\end{center}
+
+\vspace{8pt}
+
+\section*{학습 목표}
+\begin{GoalBox}
+\begin{enumerate}[leftmargin=18pt]
+  \item 일반화(generic)와 템플릿의 목적을 이해한다.
+  \item 템플릿으로부터 구체화(specialization) 과정의 의미를 이해한다.
+  \item 템플릿 함수/클래스를 작성하고 활용할 수 있다.
+  \item STL(Standard Template Library)의 구성(컨테이너/이터레이터/알고리즘)을 이해한다.
+  \item vector, map 컨테이너를 기본 수준에서 활용할 수 있다.
+  \item iterator와 알고리즘 함수(sort 등)를 간단히 활용할 수 있다.
+\end{enumerate}
+\end{GoalBox}
+
+\section*{실습 운영 규칙}
+\begin{itemize}[leftmargin=18pt]
+  \item 모든 코드는 \texttt{main()} 포함, \textbf{독립 실행} 형태입니다.
+  \item 템플릿 오류는 컴파일러 메시지가 불친절할 수 있습니다. \textbf{에러 메시지에서 “어떤 타입 T로 구체화되었는지”}를 먼저 찾으세요.
+  \item STL은 기본적으로 \texttt{std} 네임스페이스에 정의되어 있습니다.
+\end{itemize}
+
+\tableofcontents
+\newpage
+
+%=========================================================
+\section{중복 함수의 약점과 템플릿의 필요성: myswap()}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item int 버전, double 버전처럼 중복 함수는 코드가 거의 같은데 타입만 달라서 \textbf{복붙}가 발생.
+  \item 템플릿은 타입을 매개변수로 받아 \textbf{하나의 코드로 여러 타입 버전}을 생성(구체화).
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L1\_myswap\_overload\_problem.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+// 타입만 다르고 코드가 동일한 중복 함수(문제)
+void myswap(int& a, int& b) {
+    int tmp = a; a = b; b = tmp;
+}
+void myswap(double& a, double& b) {
+    double tmp = a; a = b; b = tmp;
+}
+
+int main() {
+    int a=4, b=5;
+    myswap(a,b);
+    cout << a << '\t' << b << "\n";
+
+    double c=0.3, d=12.5;
+    myswap(c,d);
+    cout << c << '\t' << d << "\n";
+}
+\end{cppcode}
+
+\noindent\filetag{L1b\_myswap\_template.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+/*
+template <class T> 또는 template <typename T>
+- T는 "제네릭 타입"
+- 컴파일러가 호출에 맞춰 T를 int/double/...로 대입해 함수 코드를 생성(구체화)
+*/
+template <class T>
+void myswap(T& a, T& b) {
+    T tmp = a;
+    a = b;
+    b = tmp;
+}
+
+int main() {
+    int a=4, b=5;
+    myswap(a,b);
+    cout << a << '\t' << b << "\n";
+
+    double c=0.3, d=12.5;
+    myswap(c,d);
+    cout << c << '\t' << d << "\n";
+}
+\end{cppcode}
+
+%=========================================================
+\section{예제 10-1: 객체도 swap 된다(제네릭 myswap)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 템플릿은 사용자 정의 타입(클래스)에도 적용 가능.
+  \item 단, 대입(=)이 가능해야 한다(기본 복사 대입/사용자 정의).
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L2\_myswap\_with\_class.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+class Circle {
+    int radius;
+public:
+    Circle(int radius=1) : radius(radius) {}
+    int getRadius() const { return radius; }
+};
+
+template <class T>
+void myswap(T& a, T& b) {
+    T tmp = a;
+    a = b;
+    b = tmp;
+}
+
+int main() {
+    int a=4, b=5;
+    myswap(a,b);
+    cout << "a=" << a << ", b=" << b << "\n";
+
+    double c=0.3, d=12.5;
+    myswap(c,d);
+    cout << "c=" << c << ", d=" << d << "\n";
+
+    Circle donut(5), pizza(20);
+    myswap(donut, pizza);
+    cout << "donut반지름=" << donut.getRadius() << ", ";
+    cout << "pizza반지름=" << pizza.getRadius() << "\n";
+}
+\end{cppcode}
+
+%=========================================================
+\section{구체화 오류: 서로 다른 타입을 한 템플릿에 넣으면?}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item \texttt{myswap(T\&,T\&)}는 두 매개변수가 \textbf{같은 T}여야 한다.
+  \item \texttt{myswap(int,double)}는 \textbf{T를 하나로 결정할 수 없어} 컴파일 오류.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L3\_myswap\_type\_mismatch.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+template <class T>
+void myswap(T& a, T& b) {
+    T tmp = a; a = b; b = tmp;
+}
+
+int main() {
+    int s = 4;
+    double t = 5;
+    // myswap(s, t); // (에러 확인) myswap(int&, double&)를 구체화할 수 없음
+    cout << "OK\n";
+}
+\end{cppcode}
+
+%=========================================================
+\section{예제 10-2: bigger() 템플릿 (비교 연산 필요)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 템플릿 안에서 \texttt{>} 연산을 쓰면, T 타입이 \texttt{>}를 지원해야 한다.
+  \item 기본 타입(int, char 등)은 OK. 사용자 정의 타입이면 operator> 제공 필요(7장과 연결).
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L4\_bigger.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+template <class T>
+T bigger(T a, T b) {
+    if(a > b) return a;
+    else return b;
+}
+
+int main() {
+    int a=20, b=50;
+    char c='a', d='z';
+    cout << "bigger(20,50) = " << bigger(a,b) << "\n";
+    cout << "bigger('a','z') = " << bigger(c,d) << "\n";
+}
+\end{cppcode}
+
+%=========================================================
+\section{예제 10-3: add() 템플릿 (누적 합)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 배열과 크기를 받아 합을 구한다.
+  \item T에 대해 \texttt{0}으로 초기화/ \texttt{+=}가 가능해야 한다.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L5\_add\_array.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+template <class T>
+T add(T data[], int n) {
+    T sum = 0;
+    for(int i=0; i<n; i++) sum += data[i];
+    return sum;
+}
+
+int main() {
+    int x[] = {1,2,3,4,5};
+    double d[] = {1.2,2.3,3.4,4.5,5.6,6.7};
+    cout << "sum of x[] = " << add(x,5) << "\n";
+    cout << "sum of d[] = " << add(d,6) << "\n";
+}
+\end{cppcode}
+
+%=========================================================
+\section{예제 10-4: mcopy() 템플릿 (타입 2개)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 서로 다른 타입 배열끼리 복사할 때 T1(소스), T2(목적지) 2개 타입 매개변수 사용.
+  \item \texttt{(T2)src[i]} 캐스팅으로 변환(정밀도 손실 가능성은 주석으로 설명).
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L6\_mcopy.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+template <class T1, class T2>
+void mcopy(T1 src[], T2 dest[], int n) {
+    for(int i=0; i<n; i++)
+        dest[i] = (T2)src[i]; // T1 -> T2 변환(주의: 손실 가능)
+}
+
+int main() {
+    int x[] = {1,2,3,4,5};
+    double d[5];
+
+    char c[5] = {'H','e','l','l','o'}, e[5];
+
+    mcopy(x, d, 5);
+    mcopy(c, e, 5);
+
+    for(int i=0;i<5;i++) cout << d[i] << ' ';
+    cout << "\n";
+    for(int i=0;i<5;i++) cout << e[i] << ' ';
+    cout << "\n";
+}
+\end{cppcode}
+
+%=========================================================
+\section{예제 10-5: 제네릭 스택 클래스 MyStack<T>}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 템플릿 클래스는 \texttt{MyStack<T>} 형태로 정의하고,
+        멤버 함수 구현은 \texttt{MyStack<T>::func}처럼 작성.
+  \item \texttt{MyStack<int>}, \texttt{MyStack<double>} 처럼 타입을 지정해 객체 생성.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L7\_MyStack\_template\_class.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+template <class T>
+class MyStack {
+    int tos;          // top of stack
+    T data[100];      // 스택 크기 100
+public:
+    MyStack() : tos(-1) {}
+    void push(T element) {
+        if(tos == 99) { cout << "stack full\n"; return; }
+        data[++tos] = element;
+    }
+    T pop() {
+        if(tos == -1) { cout << "stack empty\n"; return T(); } // T()로 기본값 반환
+        return data[tos--];
+    }
+};
+
+int main() {
+    MyStack<int> iStack;
+    iStack.push(3);
+    cout << iStack.pop() << "\n";
+
+    MyStack<double> dStack;
+    dStack.push(3.5);
+    cout << dStack.pop() << "\n";
+
+    MyStack<char>* p = new MyStack<char>();
+    p->push('a');
+    cout << p->pop() << "\n";
+    delete p;
+}
+\end{cppcode}
+
+%=========================================================
+\section{STL 개요: 컨테이너/이터레이터/알고리즘}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 컨테이너(container): 데이터를 담는 자료구조(템플릿 클래스) 예) \texttt{vector}, \texttt{map}
+  \item 이터레이터(iterator): 컨테이너 원소를 가리키는 ``포인터 같은 것''
+  \item 알고리즘(algorithm): 정렬/검색/복사 등 기능(전역 템플릿 함수) 예) \texttt{sort()}
+\end{itemize}
+\end{GoalBox}
+
+%=========================================================
+\section{예제 10-6: vector<int> 기본 사용}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item \texttt{push\_back()}으로 뒤에 추가, \texttt{size()}로 개수.
+  \item \texttt{v[i]}는 빠르지만 범위 체크 없음, \texttt{v.at(i)}는 범위 체크(예외 가능).
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L8\_vector\_basic.cpp}
+\begin{cppcode}
+#include <iostream>
+#include <vector>
+using namespace std;
+
+int main() {
+    vector<int> v;
+    v.push_back(1);
+    v.push_back(2);
+    v.push_back(3);
+
+    for(int i=0; i<(int)v.size(); i++)
+        cout << v[i] << " ";
+    cout << "\n";
+
+    v[0] = 10;
+    int n = v[2];     // 3
+    v.at(2) = 5;      // 3번째 원소를 5로 변경
+
+    for(int i=0; i<(int)v.size(); i++)
+        cout << v[i] << " ";
+    cout << "\n";
+}
+\end{cppcode}
+
+%=========================================================
+\section{예제 10-7: vector<string>로 사전순 비교}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item \texttt{getline}으로 공백 포함 문자열 입력.
+  \item 문자열 비교(\texttt{<})는 사전순 비교(lexicographic).
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L9\_vector\_string\_lexico.cpp}
+\begin{cppcode}
+#include <iostream>
+#include <string>
+#include <vector>
+using namespace std;
+
+int main() {
+    vector<string> sv;
+    string name;
+
+    cout << "이름을 5개 입력하라\n";
+    for(int i=0; i<5; i++) {
+        cout << i+1 << ">>";
+        getline(cin, name);
+        sv.push_back(name);
+    }
+
+    name = sv.at(0);
+    for(int i=1; i<(int)sv.size(); i++) {
+        if(name < sv[i]) name = sv[i];
+    }
+    cout << "사전에서 가장 뒤에 나오는 이름은 " << name << "\n";
+}
+\end{cppcode}
+
+%=========================================================
+\section{예제 10-8: iterator로 vector 원소 2배}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item \texttt{vector<int>::iterator it;} 처럼 컨테이너 타입에 종속된 iterator 타입이 있다.
+  \item \texttt{*it}로 원소 접근(읽기/쓰기), \texttt{it++}로 다음 원소 이동.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L10\_vector\_iterator\_double.cpp}
+\begin{cppcode}
+#include <iostream>
+#include <vector>
+using namespace std;
+
+int main() {
+    vector<int> v;
+    v.push_back(1);
+    v.push_back(2);
+    v.push_back(3);
+
+    vector<int>::iterator it;
+    for(it = v.begin(); it != v.end(); it++) {
+        *it = (*it) * 2; // 읽고 쓰기
+    }
+
+    for(it = v.begin(); it != v.end(); it++)
+        cout << *it << ' ';
+    cout << "\n";
+}
+\end{cppcode}
+
+%=========================================================
+\section{예제 10-9: map으로 영한 사전 만들기}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item map은 (키,값) 쌍을 저장하고, 키로 값을 찾는다.
+  \item \texttt{find(key) == end()}이면 없음.
+  \item \texttt{dic[key]}는 key가 없으면 새 원소를 만들 수 있으니 주의.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L11\_map\_dictionary.cpp}
+\begin{cppcode}
+#include <iostream>
+#include <string>
+#include <map>
+using namespace std;
+
+int main() {
+    map<string, string> dic;
+
+    dic.insert(make_pair("love", "사랑"));
+    dic.insert(make_pair("apple", "사과"));
+    dic["cherry"] = "체리";
+
+    cout << "저장된 단어 개수 " << dic.size() << "\n";
+
+    string eng;
+    while(true) {
+        cout << "찾고 싶은 단어>> ";
+        getline(cin, eng);
+        if(eng == "exit") break;
+
+        if(dic.find(eng) == dic.end())
+            cout << "없음\n";
+        else
+            cout << dic[eng] << "\n";
+    }
+    cout << "종료합니다...\n";
+}
+\end{cppcode}
+
+%=========================================================
+\section{예제 10-10: map<string, Item>으로 재고 관리(삽입/검색/삭제)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 값 타입을 객체로 두면 map이 작은 DB처럼 동작.
+  \item \texttt{erase(key)}는 삭제한 원소 개수(0 또는 1)를 반환.
+  \item \texttt{stock[name]}는 없으면 기본 Item을 생성할 수 있으니,
+        존재 확인은 \texttt{find}로 하는 습관 권장.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L12\_map\_inventory.cpp}
+\begin{cppcode}
+#include <iostream>
+#include <string>
+#include <map>
+using namespace std;
+
+class Item {
+public:
+    int price;
+    int count;
+    Item(int price=0, int count=0) : price(price), count(count) {}
+};
+
+int main() {
+    map<string, Item> stock;
+
+    while(true) {
+        cout << "상품 입고:1, 검색:2, 삭제:3, 종료:4>>";
+        int menu;
+        cin >> menu;
+
+        string name;
+        int price=0, count=0;
+
+        switch(menu) {
+        case 1:
+            cout << "상품명, 가격, 개수 입력>>";
+            cin >> name >> price >> count;
+            stock.insert(make_pair(name, Item(price, count)));
+            break;
+        case 2:
+            cout << "상품명 입력>>";
+            cin >> name;
+            if(stock.find(name) == stock.end())
+                cout << name << " 없음\n";
+            else {
+                Item item = stock[name];
+                cout << "가격 " << item.price << ", 재고 " << item.count << "개\n";
+            }
+            break;
+        case 3: {
+            cout << "상품명 입력>>";
+            cin >> name;
+            int removed = stock.erase(name);
+            if(removed == 0) cout << name << " 없음\n";
+            else cout << name << " 삭제 완료\n";
+            break;
+        }
+        case 4:
+            cout << "종료합니다...\n";
+            return 0;
+        }
+    }
+}
+\end{cppcode}
+
+%=========================================================
+\section{예제 10-11: map 전체 출력(이터레이터)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item map의 iterator는 \texttt{it->first} (키), \texttt{it->second} (값)으로 접근.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L13\_printMap.cpp}
+\begin{cppcode}
+#include <iostream>
+#include <string>
+#include <map>
+using namespace std;
+
+void printMap(map<string,int>& m) {
+    map<string,int>::iterator it;
+    for(it = m.begin(); it != m.end(); it++) {
+        cout << it->first << ":" << it->second << "원\n";
+    }
+}
+
+int main() {
+    map<string,int> priceMap;
+    priceMap["붕어빵"] = 2000;
+    priceMap["잉어빵"] = 2500;
+    priceMap.insert(make_pair("국화빵", 3000));
+
+    printMap(priceMap);
+    cout << "\n";
+    priceMap.erase("붕어빵");
+    printMap(priceMap);
+}
+\end{cppcode}
+
+%=========================================================
+\section{알고리즘: sort()로 vector 정렬 (예제 10-12)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 알고리즘 함수는 컨테이너 멤버가 아닌 \textbf{전역 함수} (헤더: \texttt{<algorithm>}).
+  \item \texttt{sort(begin, end)}에서 end는 ``마지막 다음''.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L14\_sort\_vector.cpp}
+\begin{cppcode}
+#include <iostream>
+#include <vector>
+#include <algorithm>
+using namespace std;
+
+int main() {
+    vector<int> v;
+    cout << "5개의 정수를 입력하세요>> ";
+    for(int i=0; i<5; i++) {
+        int n;
+        cin >> n;
+        v.push_back(n);
+    }
+
+    sort(v.begin(), v.end()); // 오름차순 정렬(원소 순서가 바뀜)
+
+    for(vector<int>::iterator it = v.begin(); it != v.end(); it++)
+        cout << *it << ' ';
+    cout << "\n";
+}
+\end{cppcode}
+
+\section*{마무리 체크리스트}
+\begin{GoalBox}
+\begin{itemize}[leftmargin=18pt]
+  \item 템플릿 함수/클래스에서 ``T가 어떤 조건을 만족해야 하는지''(연산 가능 여부)를 설명할 수 있는가?
+  \item 구체화 오류가 왜 발생하는지(타입 추론 실패) 설명할 수 있는가?
+  \item STL 3요소(컨테이너/이터레이터/알고리즘)를 설명할 수 있는가?
+  \item vector에서 \texttt{[]} vs \texttt{at()} 차이를 말할 수 있는가?
+  \item map에서 \texttt{find}, \texttt{erase}, \texttt{[]} 사용 시 주의점을 말할 수 있는가?
+  \item sort의 범위 표기(\texttt{[begin,end)})를 설명할 수 있는가?
+\end{itemize}
+\end{GoalBox}
+
+\end{document}

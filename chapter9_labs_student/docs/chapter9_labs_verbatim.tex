@@ -1,0 +1,454 @@
+%=========================================================
+% C++ Chapter 9 Lab Handout (Verbatim Korean-safe)
+% Topic: Virtual functions & Abstract classes (가상 함수와 추상 클래스)
+% Compile with XeLaTeX
+%=========================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{fontspec}
+\usepackage{kotex}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{fvextra}
+
+% ---------- Fonts ----------
+% If D2Coding isn't available, try: NanumGothicCoding, Noto Sans Mono CJK KR
+\setmonofont{D2Coding}[Scale=MatchLowercase]
+
+% ---------- Colors ----------
+\definecolor{CodeBg}{RGB}{248,248,248}
+\definecolor{CodeFrame}{RGB}{220,220,220}
+\definecolor{Accent}{RGB}{40,80,160}
+
+% ---------- Header ----------
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\textbf{C++ 9장 실습}}
+\rhead{\textbf{가상 함수와 추상 클래스}}
+\cfoot{\thepage}
+
+\titleformat{\section}{\Large\bfseries\color{Accent}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{0.6em}{}
+
+% ---------- Boxes ----------
+\newtcolorbox{GoalBox}{
+  colback=CodeBg,
+  colframe=CodeFrame,
+  arc=3pt,
+  boxrule=0.8pt,
+  left=10pt,right=10pt,top=8pt,bottom=8pt
+}
+\newcommand{\filetag}[1]{\texttt{\color{Accent}#1}}
+
+% ---------- Code block environment (Unicode-safe) ----------
+\DefineVerbatimEnvironment{cppcode}{Verbatim}{
+  fontsize=\small,
+  frame=single,
+  framerule=0.6pt,
+  rulecolor=\color{CodeFrame},
+  numbers=left,
+  numbersep=8pt,
+  baselinestretch=1,
+  breaklines=true,
+  breaksymbolleft=,
+  breaksymbolright=,
+  commandchars=\\\{\},
+  xleftmargin=1.5em
+}
+
+\begin{document}
+
+\begin{center}
+  {\LARGE \textbf{C++ 9장 실습: 가상 함수와 추상 클래스}}\\
+  \vspace{6pt}
+  {\large (overriding / virtual / dynamic binding / virtual destructor / pure virtual / abstract class)}
+\end{center}
+
+\vspace{8pt}
+
+\section*{학습 목표(슬라이드 요약)}
+\begin{GoalBox}
+\begin{enumerate}[leftmargin=18pt]
+  \item 상속에서 함수 재정의(redefine)를 이해한다.
+  \item 가상 함수와 오버라이딩, 동적 바인딩의 개념을 이해한다.
+  \item 가상 소멸자의 중요성을 이해한다.
+  \item 가상 함수를 활용하여 프로그램을 작성할 수 있다.
+  \item 순수 가상 함수와 추상 클래스를 이해하고 작성할 수 있다.
+\end{enumerate}
+\end{GoalBox}
+
+\section*{실습 운영 규칙}
+\begin{itemize}[leftmargin=18pt]
+  \item 모든 코드는 \texttt{main()} 포함, \textbf{독립 실행} 가능합니다.
+  \item (에러 확인) 표시는 주석을 풀면 일부러 컴파일 에러가 나도록 만든 학습용 코드입니다.
+  \item \textbf{9장의 핵심은 “Base* 로 호출했는데 Derived 함수가 실행되는가?”} 입니다.
+  \item 삭제(delete)가 들어가는 예제는 \textbf{가상 소멸자}를 반드시 확인하세요.
+\end{itemize}
+
+\tableofcontents
+\newpage
+
+%=========================================================
+\section{가상 함수가 없을 때: 단순 함수 재정의(redefine) (예제 9-1)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 파생 클래스에서 같은 이름의 함수를 만들면 ``함수 재정의''가 됩니다.
+  \item 하지만 Base 포인터로 호출하면, \textbf{정적 바인딩}으로 Base 함수가 호출됩니다.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L1\_RedefineNoVirtual.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+class Base {
+public:
+    void f() { cout << "Base::f() called\n"; }
+};
+
+class Derived : public Base {
+public:
+    void f() { cout << "Derived::f() called\n"; }
+};
+
+int main() {
+    Derived d;
+    Derived* pDer = &d;
+    pDer->f();             // Derived::f()
+
+    Base* pBase = pDer;    // 업캐스팅
+    pBase->f();            // Base::f() (가상 함수가 아니면 정적 바인딩)
+}
+\end{cppcode}
+
+%=========================================================
+\section{가상 함수: 오버라이딩 + 동적 바인딩 (예제 9-2)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item \texttt{virtual}은 ``동적 바인딩 지시어''입니다.
+  \item Base 포인터로 호출해도, 실제 객체가 Derived면 \textbf{Derived 함수가 실행}됩니다.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L2\_VirtualOverriding.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+class Base {
+public:
+    virtual void f() { cout << "Base::f() called\n"; }
+};
+
+class Derived : public Base {
+public:
+    void f() override { cout << "Derived::f() called\n"; } // override는 실수 방지용(권장)
+};
+
+int main() {
+    Derived d;
+    Base* pBase = &d;  // 업캐스팅
+    pBase->f();        // 동적 바인딩 -> Derived::f()
+}
+\end{cppcode}
+
+%=========================================================
+\section{동적 바인딩 예제: Base 멤버 함수가 내부에서 virtual 호출}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item Base의 \texttt{paint()}는 Base 함수이지만, 내부에서 \texttt{draw()}(virtual)를 호출합니다.
+  \item 그래서 \texttt{Shape* p = new Circle(); p->paint();}에서 \textbf{Circle::draw()}가 실행됩니다.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L3\_PaintDrawDynamic.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+class Shape {
+public:
+    void paint() { draw(); } // Base 멤버 함수
+    virtual void draw() { cout << "Shape::draw() called\n"; }
+};
+
+class Circle : public Shape {
+public:
+    void draw() override { cout << "Circle::draw() called\n"; }
+};
+
+int main() {
+    Shape* p1 = new Shape();
+    p1->paint();  // Shape::draw()
+    delete p1;
+
+    Shape* p2 = new Circle(); // 업캐스팅
+    p2->paint();  // Circle::draw() (동적 바인딩)
+    delete p2;
+}
+\end{cppcode}
+
+%=========================================================
+\section{상속이 반복될 때: Base/Derived/GrandDerived (예제 9-3)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item virtual 함수는 ``가장 아래(가장 구체) 클래스''의 오버라이딩이 선택됩니다.
+  \item Base*, Derived*, GrandDerived* 모두 같은 객체를 가리키면, 호출 결과는 동일할 수 있습니다.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L4\_GrandDerivedDynamic.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+class Base {
+public:
+    virtual void f() { cout << "Base::f() called\n"; }
+};
+class Derived : public Base {
+public:
+    void f() override { cout << "Derived::f() called\n"; }
+};
+class GrandDerived : public Derived {
+public:
+    void f() override { cout << "GrandDerived::f() called\n"; }
+};
+
+int main() {
+    GrandDerived g;
+    Base* bp = &g;
+    Derived* dp = &g;
+    GrandDerived* gp = &g;
+
+    bp->f();  // GrandDerived::f()
+    dp->f();  // GrandDerived::f()
+    gp->f();  // GrandDerived::f()
+}
+\end{cppcode}
+
+%=========================================================
+\section{범위 지정 연산자(::)로 Base의 virtual 호출하기 (예제 9-4)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item \texttt{p->draw()}는 동적 바인딩으로 파생 draw()가 호출될 수 있습니다.
+  \item \texttt{p->Shape::draw()}는 \textbf{정적 바인딩}으로 Base의 draw()를 강제로 호출합니다.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L5\_ScopeResolutionVirtual.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+class Shape {
+public:
+    virtual void draw() { cout << "--Shape--"; }
+};
+
+class Circle : public Shape {
+public:
+    void draw() override {
+        Shape::draw();     // (선택) Base 기능을 먼저 실행하고
+        cout << "Circle\n"; // 기능 추가
+    }
+};
+
+int main() {
+    Circle circle;
+    Shape* pShape = &circle;
+    pShape->draw();           // 동적 바인딩 -> Circle::draw()
+    pShape->Shape::draw();    // 정적 바인딩 -> Shape::draw()
+    cout << "\n";
+}
+\end{cppcode}
+
+%=========================================================
+\section{가상 소멸자: Base*로 delete 할 때 필수 (예제 9-5)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item \textbf{Base 포인터로 Derived 객체를 delete}할 가능성이 있으면, Base 소멸자는 반드시 virtual이어야 합니다.
+  \item 그렇지 않으면 Derived 소멸자가 호출되지 않아 자원 해제가 누락될 수 있습니다.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L6\_VirtualDestructor.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+class Base {
+public:
+    virtual ~Base() { cout << "~Base()\n"; }
+};
+
+class Derived : public Base {
+public:
+    ~Derived() override { cout << "~Derived()\n"; }
+};
+
+int main() {
+    Derived* dp = new Derived();
+    Base* bp = new Derived();
+
+    delete dp; // ~Derived -> ~Base
+    delete bp; // (중요) Base*로 delete 해도 ~Derived -> ~Base
+}
+\end{cppcode}
+
+%=========================================================
+\section{순수 가상 함수와 추상 클래스}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item \texttt{virtual void draw() = 0;} 처럼 선언하면 \textbf{순수 가상 함수}.
+  \item 순수 가상 함수를 1개라도 가진 클래스는 \textbf{추상 클래스}가 되어 객체 생성 불가.
+  \item 대신 \textbf{포인터/참조}는 만들 수 있고, 파생 클래스에서 구현하면 사용 가능.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L7\_PureVirtualIntro.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+class Shape {
+public:
+    virtual void draw() = 0; // 순수 가상 함수
+    void paint() { draw(); } // 순수 가상 함수도 호출은 가능(실행은 파생이 담당)
+};
+
+class Circle : public Shape {
+public:
+    void draw() override { cout << "Circle\n"; }
+};
+
+int main() {
+    // Shape s;             // (에러 확인) 추상 클래스 객체 생성 불가
+    Shape* p = new Circle();  // OK (포인터는 가능)
+    p->paint();               // Circle::draw()
+    delete p;
+}
+\end{cppcode}
+
+%=========================================================
+\section{실습 9-6: 추상 클래스 Calculator 구현 (슬라이드 예제 9-6)}
+\begin{GoalBox}
+\textbf{문제}
+\begin{itemize}[leftmargin=18pt]
+  \item 추상 클래스 \texttt{Calculator}를 상속받아 \texttt{GoodCalc}를 구현한다.
+  \item 3개의 순수 가상 함수를 모두 구현해야 객체 생성 가능.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L8\_GoodCalc.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+class Calculator {
+public:
+    virtual int add(int a, int b) = 0;
+    virtual int subtract(int a, int b) = 0;
+    virtual double average(int a[], int size) = 0;
+    virtual ~Calculator() {} // (권장) 추상 클래스도 가상 소멸자
+};
+
+class GoodCalc : public Calculator {
+public:
+    int add(int a, int b) override { return a + b; }
+    int subtract(int a, int b) override { return a - b; }
+    double average(int a[], int size) override {
+        double sum = 0;
+        for (int i = 0; i < size; i++) sum += a[i];
+        return sum / size;
+    }
+};
+
+int main() {
+    int a[] = {1,2,3,4,5};
+    Calculator* p = new GoodCalc();
+    cout << p->add(2, 3) << endl;
+    cout << p->subtract(2, 3) << endl;
+    cout << p->average(a, 5) << endl;
+    delete p;
+}
+\end{cppcode}
+
+%=========================================================
+\section{실습 9-7: 템플릿 메서드 패턴 느낌의 추상 클래스 (슬라이드 예제 9-7)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 기본 클래스는 \texttt{run()}의 전체 흐름을 제공하고,
+        파생 클래스는 \texttt{calc()}만 구현한다.
+  \item 이런 구조는 ``공통 흐름 + 부분 구현''을 깔끔하게 분리한다.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L9\_AdderSubtractor.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+class Calculator {
+    void input() {
+        cout << "정수 2 개를 입력하세요>> ";
+        cin >> a >> b;
+    }
+protected:
+    int a, b;
+    virtual int calc(int a, int b) = 0; // 순수 가상 함수
+public:
+    void run() {
+        input();
+        cout << "계산된 값은 " << calc(a, b) << endl;
+    }
+    virtual ~Calculator() {}
+};
+
+class Adder : public Calculator {
+protected:
+    int calc(int a, int b) override { return a + b; }
+};
+
+class Subtractor : public Calculator {
+protected:
+    int calc(int a, int b) override { return a - b; }
+};
+
+int main() {
+    Adder adder;
+    Subtractor subtractor;
+    adder.run();
+    subtractor.run();
+}
+\end{cppcode}
+
+%=========================================================
+\section*{마무리 체크리스트}
+\begin{GoalBox}
+\begin{itemize}[leftmargin=18pt]
+  \item virtual이 없을 때 Base*로 호출하면 왜 Base 함수가 실행되는가(정적 바인딩)?
+  \item virtual이 있으면 Base*로 호출해도 왜 Derived 함수가 실행되는가(동적 바인딩)?
+  \item 오버라이딩 성공 조건(이름/매개변수/리턴 타입 일치)을 설명할 수 있는가?
+  \item \texttt{override}를 쓰면 어떤 실수를 줄일 수 있는가?
+  \item Base의 가상 함수를 \texttt{Base::func()}로 강제 호출하면 무슨 효과(정적 바인딩)가 있는가?
+  \item Base*로 delete할 가능성이 있으면 왜 Base 소멸자를 virtual로 해야 하는가?
+  \item 순수 가상 함수와 추상 클래스의 의미(객체 생성 불가, 포인터 가능)를 말할 수 있는가?
+\end{itemize}
+\end{GoalBox}
+
+\end{document}

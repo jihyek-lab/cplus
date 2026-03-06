@@ -1,0 +1,478 @@
+%=========================================================
+% C++ Chapter 8 Lab Handout (Verbatim Korean-safe)
+% Topic: Inheritance (상속)
+% Compile with XeLaTeX
+%=========================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{fontspec}
+\usepackage{kotex}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{fvextra}
+
+% ---------- Fonts ----------
+% If D2Coding isn't available, try: NanumGothicCoding, Noto Sans Mono CJK KR
+\setmonofont{D2Coding}[Scale=MatchLowercase]
+
+% ---------- Colors ----------
+\definecolor{CodeBg}{RGB}{248,248,248}
+\definecolor{CodeFrame}{RGB}{220,220,220}
+\definecolor{Accent}{RGB}{40,80,160}
+
+% ---------- Header ----------
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\textbf{C++ 8장 실습}}
+\rhead{\textbf{상속}}
+\cfoot{\thepage}
+
+\titleformat{\section}{\Large\bfseries\color{Accent}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{0.6em}{}
+
+% ---------- Boxes ----------
+\newtcolorbox{GoalBox}{
+  colback=CodeBg,
+  colframe=CodeFrame,
+  arc=3pt,
+  boxrule=0.8pt,
+  left=10pt,right=10pt,top=8pt,bottom=8pt
+}
+\newcommand{\filetag}[1]{\texttt{\color{Accent}#1}}
+
+% ---------- Code block environment (Unicode-safe) ----------
+\DefineVerbatimEnvironment{cppcode}{Verbatim}{
+  fontsize=\small,
+  frame=single,
+  framerule=0.6pt,
+  rulecolor=\color{CodeFrame},
+  numbers=left,
+  numbersep=8pt,
+  baselinestretch=1,
+  breaklines=true,
+  breaksymbolleft=,
+  breaksymbolright=,
+  commandchars=\\\{\},
+  xleftmargin=1.5em
+}
+
+\begin{document}
+
+\begin{center}
+  {\LARGE \textbf{C++ 8장 실습: 상속}}\\
+  \vspace{6pt}
+  {\large (inheritance / upcasting \& downcasting / protected / ctor-dtor order / inheritance modes / multiple \& virtual inheritance)}
+\end{center}
+
+\vspace{8pt}
+
+\section*{학습 목표}
+\begin{GoalBox}
+\begin{enumerate}[leftmargin=18pt]
+  \item 객체 지향 상속 개념 이해
+  \item 상속 선언 및 파생 클래스 객체 구조 이해
+  \item 업 캐스팅/다운 캐스팅과 객체 포인터 관계 이해
+  \item \texttt{protected} 접근 지정 이해
+  \item 상속 관계 생성/소멸 과정 이해
+  \item \texttt{public/protected/private} 상속 차이 이해
+  \item 다중 상속 선언/활용
+  \item 다중 상속 문제점(다이아몬드)과 가상 상속 개념 이해
+\end{enumerate}
+\end{GoalBox}
+
+\section*{실습 운영 규칙}
+\begin{itemize}[leftmargin=18pt]
+  \item 각 실습은 \texttt{main()} 포함, \textbf{독립 실행} 형태입니다.
+  \item ``(에러 확인)'' 표시는 주석을 풀면 일부러 컴파일 에러가 나도록 만든 학습용 코드입니다.
+  \item 다운캐스팅은 위험합니다. 본 장에서는 개념 이해를 위해 \textbf{명시적 캐스팅}을 보여주되, 실제로는 안전한 방식(\texttt{dynamic\_cast})은 \textbf{가상 함수(9장)} 이후에 다루는 것이 좋습니다.
+\end{itemize}
+
+\tableofcontents
+\newpage
+
+\section{상속 선언과 파생 클래스 기본 동작(예제 8-1: Point $\rightarrow$ ColorPoint)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item \texttt{class ColorPoint : public Point} 처럼 선언.
+  \item 파생 클래스 객체는 \textbf{기본 클래스 영역 + 파생 클래스 영역}을 함께 가진다.
+  \item 파생 클래스는 기본 클래스의 public 멤버 함수를 그대로 사용 가능(\texttt{cp.set(3,4)}).
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L1\_PointColorPoint.cpp}
+\begin{cppcode}
+#include <iostream>
+#include <string>
+using namespace std;
+
+class Point {
+    int x, y; // private: 파생 클래스에서도 직접 접근 불가
+public:
+    void set(int x, int y) { this->x = x; this->y = y; }
+    void showPoint() const { cout << "(" << x << "," << y << ")" << endl; }
+};
+
+class ColorPoint : public Point { // Point를 상속
+    string color;
+public:
+    void setColor(string color) { this->color = color; }
+    void showColorPoint() const {
+        cout << color << ":";
+        showPoint(); // Point의 public 멤버 호출
+    }
+};
+
+int main() {
+    ColorPoint cp;
+    cp.set(3,4);
+    cp.setColor("Red");
+    cp.showColorPoint();
+}
+\end{cppcode}
+
+\section{업 캐스팅: 파생 클래스 포인터 $\rightarrow$ 기본 클래스 포인터}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 업 캐스팅: \texttt{Point* pBase = pDer;} 처럼 \textbf{자동} 변환 가능.
+  \item 업캐스팅된 포인터로는 기본 클래스의 \textbf{public 멤버만} 접근 가능.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L2\_Upcasting.cpp}
+\begin{cppcode}
+#include <iostream>
+#include <string>
+using namespace std;
+
+class Point {
+    int x, y;
+public:
+    void set(int x, int y) { this->x=x; this->y=y; }
+    void showPoint() const { cout << "(" << x << "," << y << ")" << endl; }
+};
+
+class ColorPoint : public Point {
+    string color;
+public:
+    void setColor(string c) { color = c; }
+    void showColorPoint() const { cout << color << ":"; showPoint(); }
+};
+
+int main() {
+    ColorPoint cp;
+    ColorPoint* pDer = &cp;
+    Point* pBase = pDer; // 업캐스팅(자동)
+
+    pDer->set(3,4);
+    pBase->showPoint(); // OK
+    pDer->setColor("Red");
+    pDer->showColorPoint();
+
+    // pBase->showColorPoint(); // (에러 확인) 기본 클래스에 없는 멤버
+}
+\end{cppcode}
+
+\section{다운 캐스팅: 기본 클래스 포인터 $\rightarrow$ 파생 클래스 포인터(주의)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 다운 캐스팅은 \textbf{명시적 캐스팅}이 필요.
+  \item 실제로 가리키는 객체가 파생 클래스일 때만 안전.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L3\_Downcasting.cpp}
+\begin{cppcode}
+#include <iostream>
+#include <string>
+using namespace std;
+
+class Point {
+    int x, y;
+public:
+    void set(int x, int y) { this->x=x; this->y=y; }
+    void showPoint() const { cout << "(" << x << "," << y << ")" << endl; }
+};
+
+class ColorPoint : public Point {
+    string color;
+public:
+    void setColor(string c) { color = c; }
+    void showColorPoint() const { cout << color << ":"; showPoint(); }
+};
+
+int main() {
+    ColorPoint cp;
+    Point* pBase = &cp; // 업캐스팅
+
+    pBase->set(3,4);
+    pBase->showPoint();
+
+    ColorPoint* pDer = (ColorPoint*)pBase; // 다운캐스팅(강제)
+    pDer->setColor("Red");
+    pDer->showColorPoint();
+}
+\end{cppcode}
+
+\section{\texttt{protected}: 파생 클래스만 접근 허용}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item \texttt{protected}는 파생 클래스 내부에서 접근 가능, 외부에서는 접근 불가.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L4\_ProtectedAccess.cpp}
+\begin{cppcode}
+#include <iostream>
+#include <string>
+using namespace std;
+
+class Point {
+protected:
+    int x, y;
+public:
+    void set(int x, int y) { this->x=x; this->y=y; }
+    void showPoint() const { cout << "(" << x << "," << y << ")" << endl; }
+};
+
+class ColorPoint : public Point {
+    string color;
+public:
+    void setColor(string c) { color = c; }
+    bool equals(const ColorPoint& p) const {
+        return (x == p.x && y == p.y && color == p.color);
+    }
+};
+
+int main() {
+    Point p;
+    p.set(2,3);
+    // p.x = 5; // (에러 확인)
+
+    ColorPoint a; a.set(3,4); a.setColor("Red");
+    ColorPoint b; b.set(3,4); b.setColor("Red");
+    cout << (a.equals(b) ? "true\n" : "false\n");
+
+    // a.x = 10; // (에러 확인)
+}
+\end{cppcode}
+
+\section{생성자/소멸자 실행 순서}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 생성: 기본 $\rightarrow$ 파생
+  \item 소멸: 파생 $\rightarrow$ 기본
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L5\_CtorDtorOrder.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+class A {
+public:
+    A() { cout << "생성자 A\n"; }
+    ~A() { cout << "소멸자 A\n"; }
+};
+class B : public A {
+public:
+    B() { cout << "생성자 B\n"; }
+    ~B() { cout << "소멸자 B\n"; }
+};
+class C : public B {
+public:
+    C() { cout << "생성자 C\n"; }
+    ~C() { cout << "소멸자 C\n"; }
+};
+
+int main() { C c; }
+\end{cppcode}
+
+\section{기본 생성자 없으면 컴파일 오류 + 초기화 리스트로 해결}
+\noindent\filetag{L6\_NoDefaultBaseCtor\_Error.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+class A {
+public:
+    A(int x) { cout << "매개변수생성자 A " << x << "\n"; }
+};
+
+class B : public A {
+public:
+    B() {
+        // (에러 확인) A()가 없어서 컴파일 오류
+        cout << "생성자 B\n";
+    }
+};
+
+int main() { B b; }
+\end{cppcode}
+
+\noindent\filetag{L6b\_FixWithInitList.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+class A {
+public:
+    A(int x) { cout << "매개변수생성자 A " << x << "\n"; }
+};
+
+class B : public A {
+public:
+    B(int x) : A(x+3) {
+        cout << "매개변수생성자 B " << x << "\n";
+    }
+};
+
+int main() { B b(5); }
+\end{cppcode}
+
+\section{TV $\rightarrow$ WideTV $\rightarrow$ SmartTV: 생성자 매개변수 전달}
+\noindent\filetag{L7\_TVWideSmart.cpp}
+\begin{cppcode}
+#include <iostream>
+#include <string>
+using namespace std;
+
+class TV {
+    int size;
+public:
+    TV() : size(20) {}
+    TV(int size) : size(size) {}
+    int getSize() const { return size; }
+};
+
+class WideTV : public TV {
+    bool videoIn;
+public:
+    WideTV(int size, bool videoIn) : TV(size), videoIn(videoIn) {}
+    bool getVideoIn() const { return videoIn; }
+};
+
+class SmartTV : public WideTV {
+    string ipAddr;
+public:
+    SmartTV(string ip, int size) : WideTV(size, true), ipAddr(ip) {}
+    string getIpAddr() const { return ipAddr; }
+};
+
+int main() {
+    SmartTV htv("192.0.0.1", 32);
+    cout << "size=" << htv.getSize() << "\n";
+    cout << "videoIn=" << boolalpha << htv.getVideoIn() << "\n";
+    cout << "IP=" << htv.getIpAddr() << "\n";
+}
+\end{cppcode}
+
+\section{상속 접근 지정자: public/protected/private 상속}
+\noindent\filetag{L8\_InheritanceModes.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+class Base {
+public:
+    void pub() { cout << "Base::pub\n"; }
+protected:
+    void prot() { cout << "Base::prot\n"; }
+};
+
+class D1 : public Base {
+public:
+    void test() { pub(); prot(); }
+};
+
+class D2 : protected Base {
+public:
+    void test() { pub(); prot(); }
+};
+
+class D3 : private Base {
+public:
+    void test() { pub(); prot(); }
+};
+
+int main() {
+    D1 a; a.pub();
+    // D2 b; b.pub(); // (에러 확인)
+    // D3 c; c.pub(); // (에러 확인)
+}
+\end{cppcode}
+
+\section{다중 상속: Calculator(Adder + Subtractor)}
+\noindent\filetag{L9\_MultipleInheritanceCalculator.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+class Adder {
+protected:
+    int add(int a, int b) { return a + b; }
+};
+class Subtractor {
+protected:
+    int minus(int a, int b) { return a - b; }
+};
+
+class Calculator : public Adder, public Subtractor {
+public:
+    int calc(char op, int a, int b) {
+        switch(op) {
+        case '+': return add(a,b);
+        case '-': return minus(a,b);
+        default:  return 0;
+        }
+    }
+};
+
+int main() {
+    Calculator c;
+    cout << "2 + 4 = " << c.calc('+',2,4) << "\n";
+    cout << "100 - 8 = " << c.calc('-',100,8) << "\n";
+}
+\end{cppcode}
+
+\section{다이아몬드 문제와 가상 상속(개념)}
+\noindent\filetag{L10\_DiamondVirtualInheritance.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+class A {
+public:
+    int x;
+    A() : x(1) {}
+};
+
+class B : public A {};
+class C : public A {};
+class D_bad : public B, public C {};
+
+class Bv : virtual public A {};
+class Cv : virtual public A {};
+class D_good : public Bv, public Cv {};
+
+int main() {
+    D_good d;
+    d.x = 10;
+    cout << d.x << "\n";
+
+    // D_bad e;
+    // e.x = 10; // (에러 확인) 어떤 A::x 인지 모호
+}
+\end{cppcode}
+
+\end{document}
