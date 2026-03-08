@@ -1,26 +1,38 @@
 #include <iostream>
 
+/*
+[핵심 정리]
+1) << 연산자를 이어서 여러 값을 한 번에 출력할 수 있다.
+2) int / int는 정수 나눗셈이라 소수점 이하가 버려진다.
+3) '\n'은 줄바꿈 문자만 출력하고, std::endl은 줄바꿈 후 flush까지 수행한다.
+4) 학생용 실전 규칙: 기본은 '\n', 즉시 화면 반영이 꼭 필요할 때만 std::endl 사용.
+*/
+
 int main() {
     int a = 10, b = 3;
 
-    // (1) << 를 여러 번 이어서 출력 가능
     std::cout << "a = " << a << ", b = " << b << "\n";
 
-    // (2) 괄호로 연산 결과를 출력할 수 있음
     std::cout << "a + b = " << (a + b) << "\n";
 
-    // (3) int / int 는 정수 나눗셈: 소수점 버림(몫만)
     std::cout << "a / b = " << (a / b) << "  (integer division)\n";
 
-    // (4) 줄바꿈 비교: '\n' vs std::endl
-    //     - '\n' : 출력 스트림 버퍼에 개행 문자만 넣음(보통 즉시 플러시하지 않음).
-    //               성능상 루프 등에서 권장됨.
-    //     - std::endl : 개행 문자를 출력한 뒤 스트림을 즉시 플러시(flush)함.
-    //                  플러시는 버퍼에 쌓인 데이터를 바로 출력 장치로 밀어내며 비용이 있음.
-    //     - 터미널(stdout)은 환경에 따라 라인 버퍼링으로 '\n'만으로도 플러시될 수 있음.
-   
-    std::cout << "Line 1\n";               // 줄바꿈 문자만 출력
-    std::cout << "Line 2" << std::endl;    // 줄바꿈 + flush 개념
+    // 선택 가이드:
+    // - 일반 출력(대부분): '\n' 사용
+    // - 입력 직전 안내처럼 "지금 당장 보여야 하는" 출력: std::endl 사용
+    std::cout << "Line 1\n";            // 줄바꿈만 수행
+    std::cout << "Line 2" << std::endl; // 줄바꿈 + 즉시 flush
 
     return 0;
 }
+
+/*
+[컴파일/실행]
+macOS/Linux:
+  g++ -std=c++17 02_cout_chain.cpp -o run
+  ./run
+
+Windows(MinGW):
+  g++ -std=c++17 02_cout_chain.cpp -o run.exe
+  run.exe
+*/
