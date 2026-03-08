@@ -1,0 +1,520 @@
+%=========================================================
+% C++ Chapter 13 Lab Handout (Verbatim Korean-safe)
+% Topic: Exception Handling & C Linkage (extern "C")
+% Compile with XeLaTeX
+%=========================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{fontspec}
+\usepackage{kotex}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{fvextra}
+
+% ---------- Fonts ----------
+\setmonofont{D2Coding}[Scale=MatchLowercase]
+
+% ---------- Colors ----------
+\definecolor{CodeBg}{RGB}{248,248,248}
+\definecolor{CodeFrame}{RGB}{220,220,220}
+\definecolor{Accent}{RGB}{40,80,160}
+
+% ---------- Header ----------
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\textbf{C++ 13장 실습}}
+\rhead{\textbf{예외 처리와 C 링크}}
+\cfoot{\thepage}
+
+\titleformat{\section}{\Large\bfseries\color{Accent}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{0.6em}{}
+
+% ---------- Boxes ----------
+\newtcolorbox{GoalBox}{
+  colback=CodeBg,
+  colframe=CodeFrame,
+  arc=3pt,
+  boxrule=0.8pt,
+  left=10pt,right=10pt,top=8pt,bottom=8pt
+}
+\newcommand{\filetag}[1]{\texttt{\color{Accent}#1}}
+
+% ---------- Code block environment (Unicode-safe) ----------
+% IMPORTANT: no commandchars => C++ braces {} print correctly.
+\DefineVerbatimEnvironment{cppcode}{Verbatim}{
+  fontsize=\small,
+  frame=single,
+  framerule=0.6pt,
+  rulecolor=\color{CodeFrame},
+  numbers=left,
+  numbersep=8pt,
+  baselinestretch=1,
+  breaklines=true,
+  breaksymbolleft=,
+  breaksymbolright=,
+  xleftmargin=1.5em
+}
+
+\begin{document}
+
+\begin{center}
+  {\LARGE \textbf{C++ 13장 실습: 예외 처리와 C 언어와의 링크 지정}}\\
+  \vspace{6pt}
+  {\large (try-throw-catch, exception class, nested try, C++ name mangling, extern "C")}
+\end{center}
+
+\vspace{8pt}
+
+\section*{학습 목표}
+\begin{GoalBox}
+\begin{enumerate}[leftmargin=18pt]
+  \item 실행 오류와 오류 처리의 일반적인 방법을 복습한다.
+  \item 예외와 예외 처리의 개념을 이해한다.
+  \item try-throw-catch로 구성되는 예외 처리의 기본 형식을 안다.
+  \item 예외 클래스를 작성하여 예외를 처리하는 방법을 안다.
+  \item C++의 이름 규칙을 이해한다.
+  \item C++ 코드와 C 코드의 링킹에 이름 규칙의 중요성을 이해한다.
+  \item extern "C"를 이용하여 C++ 코드와 C 코드의 성공적인 링킹 방법을 안다.
+\end{enumerate}
+\end{GoalBox}
+
+\section*{실습 운영 규칙}
+\begin{itemize}[leftmargin=18pt]
+  \item 모든 예제는 \texttt{main()} 포함, \textbf{독립 실행}입니다.
+  \item 예외 처리 실습의 핵심은 \textbf{정상 흐름(정상 값 계산)}과 \textbf{비정상 흐름(예외 경로)}를 분리하는 것입니다.
+  \item \textbf{주의:} 슬라이드에 등장하는 \texttt{throw(int)} 같은 ``예외 명세(exception specification)''는 현대 C++에서 사용을 권장하지 않습니다(구형 문법). 본 실습에서는 \textbf{개념만 이해}하고, 코드는 쓰지 않는 방식으로 제공합니다.
+  \item extern "C"는 ``C로 컴파일하라''가 아니라, \textbf{이 함수의 링크 이름을 C 규칙으로 만들라}는 의미입니다.
+\end{itemize}
+
+\tableofcontents
+\newpage
+
+%=========================================================
+\section{실행 오류 복습: 예외 상황 대응이 없는 코드 (예제 13-1)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 음수 지수 같은 ``예상 밖 입력''이 들어오면 결과가 엉뚱해질 수 있음.
+  \item 오류를 발견했는데도 계속 계산하면, \textbf{틀린 값이 정상처럼 출력}되는 것이 가장 위험.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L1\_getExp\_no\_handling.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+// base의 exp 지수승을 계산하여 리턴 (하지만 exp<0을 고려하지 않음!)
+int getExp(int base, int exp) {
+    int value = 1;
+    for(int n=0; n<exp; n++) // exp가 음수면 루프가 0번 실행됨 -> value==1
+        value *= base;
+    return value;
+}
+
+int main() {
+    cout << "2의 3승 = " << getExp(2, 3) << "\n";
+    cout << "2의 -3승 = " << getExp(2, -3) << "\n"; // 잘못된 결과가 조용히 출력됨
+}
+\end{cppcode}
+
+%=========================================================
+\section{전통적 오류 처리 1: 리턴 값으로 오류 표시 (예제 13-2)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 오류를 \texttt{-1} 같은 값으로 표시하면, \textbf{정상 결과와 충돌}할 수 있음.
+  \item 호출자가 매번 \texttt{if (ret == -1)} 같은 코드를 반복해야 하므로 ``번거롭고 실수''가 생김.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L2\_getExp\_return\_error.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+int getExp(int base, int exp) {
+    if(base <= 0 || exp <= 0) return -1; // 오류를 -1로 표시(취약)
+    int value = 1;
+    for(int n=0; n<exp; n++) value *= base;
+    return value;
+}
+
+int main() {
+    int v = getExp(2, 3);
+    if(v != -1) cout << v << "\n";
+    else        cout << "오류\n";
+
+    int e = getExp(2, -3);
+    if(e != -1) cout << e << "\n";
+    else        cout << "오류\n";
+}
+\end{cppcode}
+
+%=========================================================
+\section{전통적 오류 처리 2: bool + 참조 매개변수(out) (예제 13-3)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 리턴 값은 \textbf{성공/실패}만 전달하고, 계산 결과는 \textbf{참조 매개변수}로 전달.
+  \item 리턴 값 의미가 단일화되어(오류 상태만 표시) 비교적 깔끔해짐.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L3\_getExp\_bool\_out.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+bool getExp(int base, int exp, int& out) {
+    if(base <= 0 || exp <= 0) return false;
+    int value = 1;
+    for(int n=0; n<exp; n++) value *= base;
+    out = value;
+    return true;
+}
+
+int main() {
+    int v;
+    if(getExp(2, 3, v)) cout << v << "\n";
+    else cout << "오류\n";
+
+    int e;
+    if(getExp(2, -3, e)) cout << e << "\n";
+    else cout << "오류\n";
+}
+\end{cppcode}
+
+%=========================================================
+\section{예외 처리 기본 형식: try-throw-catch (슬라이드 핵심)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item try: 예외가 발생할 가능성이 있는 코드를 묶는다.
+  \item throw: 예외 발생을 알리고, \textbf{정상 흐름을 즉시 중단}하고 catch로 점프.
+  \item catch: 예외 타입에 맞는 블록에서 처리한다(여러 catch 가능).
+\end{itemize}
+\end{GoalBox}
+
+%=========================================================
+\section{예제 13-4: 0으로 나누기 예외 처리(입력 검증 + throw int)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 입력값 n이 0/음수면 계산을 하지 않고 throw로 예외 경로로 보낸다.
+  \item catch에서 메시지를 출력하고, 루프를 계속 돌릴지(continue), 종료할지 결정.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L4\_average\_divide\_exception.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+int main() {
+    int n, sum, average;
+    while(true) {
+        cout << "합을 입력하세요>>";
+        cin >> sum;
+        cout << "인원수를 입력하세요>>";
+        cin >> n;
+
+        try {
+            if(n <= 0) throw n;          // 예외 발생
+            average = sum / n;           // 정상 계산
+        }
+        catch(int x) {
+            cout << "예외 발생!! " << x << "으로 나눌 수 없음\n\n";
+            continue;                    // 다음 입력으로
+        }
+
+        cout << "평균 = " << average << "\n\n";
+    }
+}
+\end{cppcode}
+
+%=========================================================
+\section{함수에서 예외 던지기: getExp 완결판(예제 13-5)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item ``오류가 나면 리턴''이 아니라, \textbf{오류를 발견한 곳에서 throw}한다.
+  \item 호출자는 try/catch에서 \textbf{한 곳에 모아 처리}할 수 있음.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L5\_getExp\_throw.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+int getExp(int base, int exp) {
+    if(base <= 0 || exp <= 0) throw "음수 사용 불가";
+    int value = 1;
+    for(int n=0; n<exp; n++) value *= base;
+    return value;
+}
+
+int main() {
+    try {
+        cout << "2^3 = " << getExp(2, 3) << "\n";
+        cout << "2^-3 = " << getExp(2, -3) << "\n"; // 여기서 throw
+        cout << "이 줄은 실행되지 않음\n";
+    }
+    catch(const char* msg) {
+        cout << "예외 발생!! " << msg << "\n";
+    }
+}
+\end{cppcode}
+
+%=========================================================
+\section{예제 13-6: 문자열을 정수로 변환 (문자 발견 시 throw)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 변환 실패 시, 실패 원인(입력 문자열)을 예외로 던질 수 있다.
+  \item catch에서 사용자에게 어떤 입력이 문제였는지 알려줄 수 있다.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L6\_stringToInt.cpp}
+\begin{cppcode}
+#include <iostream>
+#include <cstring>
+using namespace std;
+
+int stringToInt(const char x[]) {
+    int sum = 0;
+    int len = strlen(x);
+    for(int i=0; i<len; i++) {
+        if(x[i] >= '0' && x[i] <= '9')
+            sum = sum*10 + (x[i]-'0');
+        else
+            throw x; // 변환 불가 -> 입력 문자열을 예외로 던짐
+    }
+    return sum;
+}
+
+int main() {
+    try {
+        cout << "\"123\" -> " << stringToInt("123") << "\n";
+        cout << "\"1A3\" -> " << stringToInt("1A3") << "\n";
+    }
+    catch(const char* s) {
+        cout << s << " 처리에서 예외 발생!!\n";
+    }
+}
+\end{cppcode}
+
+%=========================================================
+\section{예제 13-7: 예외 처리를 가진 스택 클래스}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 스택이 full/empty면 문자열 예외를 던져 호출자에게 알린다.
+  \item 호출자는 try/catch로 한 번에 처리할 수 있다.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L7\_MyStack\_exceptions.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+class MyStack {
+    int data[3]; // 실습용으로 작게(overflow를 쉽게 재현)
+    int tos;
+public:
+    MyStack(): tos(-1) {}
+    void push(int n) {
+        if(tos == 2) throw "Stack Full";
+        data[++tos] = n;
+    }
+    int pop() {
+        if(tos == -1) throw "Stack Empty";
+        return data[tos--];
+    }
+};
+
+int main() {
+    MyStack st;
+    try {
+        st.push(100);
+        st.push(200);
+        st.push(300);
+        // st.push(400); // (실습) 주석 풀면 "Stack Full"
+        cout << st.pop() << "\n";
+        cout << st.pop() << "\n";
+        cout << st.pop() << "\n";
+        cout << st.pop() << "\n"; // Stack Empty
+    }
+    catch(const char* msg) {
+        cout << "예외 발생: " << msg << "\n";
+    }
+}
+\end{cppcode}
+
+%=========================================================
+\section{중첩 try: 안쪽 예외는 안쪽 catch가 우선(슬라이드)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item try 안에 try를 중첩할 수 있다.
+  \item 예외는 \textbf{가장 가까운(안쪽) catch}부터 매칭을 시도한다.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L8\_nested\_try.cpp}
+\begin{cppcode}
+#include <iostream>
+using namespace std;
+
+int main() {
+    try {
+        throw 3; // 바깥 예외
+
+        try {
+            throw "abc"; // 안쪽 예외
+            throw 5;
+        }
+        catch(int inner) { // 안쪽 try에 연결된 catch
+            cout << "inner int: " << inner << "\n";
+        }
+    }
+    catch(const char* s) { // 바깥 try의 catch
+        cout << "outer const char*: " << s << "\n";
+    }
+    catch(int outer) {
+        cout << "outer int: " << outer << "\n";
+    }
+}
+\end{cppcode}
+
+%=========================================================
+\section{예외 클래스 만들기(예제 13-8 핵심 재구성)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 예외를 객체로 던지면, 라인/함수/메시지 등 \textbf{풍부한 정보}를 담을 수 있다.
+  \item 공통 기반 예외(MyException)를 만들고, 구체 예외를 상속으로 분리 가능.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L9\_exception\_classes.cpp}
+\begin{cppcode}
+#include <iostream>
+#include <string>
+using namespace std;
+
+class MyException {
+    int lineNo;
+    string func;
+    string msg;
+public:
+    MyException(int n, string f, string m) : lineNo(n), func(f), msg(m) {}
+    void print() const { cout << func << ":" << lineNo << ", " << msg << "\n"; }
+};
+
+class DivideByZeroException : public MyException {
+public:
+    DivideByZeroException(int n, string f, string m) : MyException(n,f,m) {}
+};
+
+class InvalidInputException : public MyException {
+public:
+    InvalidInputException(int n, string f, string m) : MyException(n,f,m) {}
+};
+
+int main() {
+    int x, y;
+    try {
+        cout << "나눗셈: 양의 정수 2개 입력>> ";
+        cin >> x >> y;
+
+        if(x < 0 || y < 0)
+            throw InvalidInputException(100, "main()", "음수 입력 예외 발생");
+        if(y == 0)
+            throw DivideByZeroException(103, "main()", "0으로 나누는 예외 발생");
+
+        cout << (double)x / (double)y << "\n";
+    }
+    catch(const DivideByZeroException& e) { e.print(); }
+    catch(const InvalidInputException& e)  { e.print(); }
+}
+\end{cppcode}
+
+%=========================================================
+\section{C/C++ 링크: 이름 맹글링(name mangling)과 extern "C"}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item C는 함수 이름이 단순(\_f)하지만, C++은 오버로딩 때문에 매개변수 타입까지 포함한 ``복잡한 이름''을 만들 수 있다.
+  \item 그래서 C로 컴파일된 f.c의 심볼(\_f)을, C++에서 기대하는 심볼(?f@@...)과 매칭 못해 링크 에러가 발생할 수 있다.
+  \item 해결: C로 컴파일된 함수를 C++에서 선언할 때 \texttt{extern "C"}로 감싸 \textbf{C 링크 이름 규칙}을 사용하게 한다.
+\end{itemize}
+\end{GoalBox}
+
+\subsection*{extern "C" 사용 예(단일 함수)}
+\noindent\filetag{L10\_externC\_single.cpp}
+\begin{cppcode}
+/*
+(개념 실습)
+- f.c 는 C 컴파일러로 컴파일된다고 가정한다.
+- main.cpp 에서 f()를 extern "C"로 선언하면 링크 성공.
+*/
+
+/* main.cpp */
+#include <iostream>
+using namespace std;
+
+extern "C" int f(int x, int y); // C 링킹 규칙 사용
+int g(int x, int y);            // C++ 링킹 규칙 사용
+
+int main() {
+    cout << f(2,5) << "\n";
+    cout << g(2,5) << "\n";
+}
+
+/* g.cpp (C++) */
+int g(int x, int y) { return x - y; }
+
+/* f.c (C) */
+int f(int x, int y) { return x + y; }
+\end{cppcode}
+
+\subsection*{extern "C" 사용 예(여러 함수/헤더)}
+\noindent\filetag{L10b\_externC\_header.cpp}
+\begin{cppcode}
+/*
+extern "C" {
+    int f(int x, int y);
+    void g();
+    char s(int []);
+}
+
+extern "C" {
+#include "mycfunction.h"
+}
+*/
+\end{cppcode}
+
+%=========================================================
+\section*{마무리 체크리스트}
+\begin{GoalBox}
+\begin{itemize}[leftmargin=18pt]
+  \item 리턴 값 오류 처리의 한계를 설명할 수 있는가?
+  \item bool+out 패턴의 장단점을 말할 수 있는가?
+  \item try/throw/catch의 제어 흐름(throw 이후 코드는 실행 안 됨)을 설명할 수 있는가?
+  \item 함수에서 예외를 던지고, 호출자에서 한 번에 처리하는 구조를 작성할 수 있는가?
+  \item 예외 클래스로 라인/함수/메시지를 담아 처리할 수 있는가?
+  \item 이름 맹글링이 왜 필요한지(오버로딩) 설명할 수 있는가?
+  \item C 함수 링킹 실패 원인과 extern "C" 해결책을 말할 수 있는가?
+\end{itemize}
+\end{GoalBox}
+
+\end{document}

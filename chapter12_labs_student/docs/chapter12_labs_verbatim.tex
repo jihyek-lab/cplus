@@ -1,0 +1,611 @@
+%=========================================================
+% C++ Chapter 12 Lab Handout (Verbatim Korean-safe)
+% Topic: File I/O (Text/Binary, Modes, State, Random Access)
+% Compile with XeLaTeX
+%=========================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{fontspec}
+\usepackage{kotex}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\usepackage{fvextra}
+
+% ---------- Fonts ----------
+% If D2Coding isn't available, try: NanumGothicCoding, Noto Sans Mono CJK KR
+\setmonofont{D2Coding}[Scale=MatchLowercase]
+
+% ---------- Colors ----------
+\definecolor{CodeBg}{RGB}{248,248,248}
+\definecolor{CodeFrame}{RGB}{220,220,220}
+\definecolor{Accent}{RGB}{40,80,160}
+
+% ---------- Header ----------
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\textbf{C++ 12장 실습}}
+\rhead{\textbf{C++ 파일 입출력}}
+\cfoot{\thepage}
+
+\titleformat{\section}{\Large\bfseries\color{Accent}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection}{0.6em}{}
+
+% ---------- Boxes ----------
+\newtcolorbox{GoalBox}{
+  colback=CodeBg,
+  colframe=CodeFrame,
+  arc=3pt,
+  boxrule=0.8pt,
+  left=10pt,right=10pt,top=8pt,bottom=8pt
+}
+\newcommand{\filetag}[1]{\texttt{\color{Accent}#1}}
+
+% ---------- Code block environment (Unicode-safe) ----------
+% IMPORTANT: do NOT set commandchars, so C++ braces {} print correctly.
+\DefineVerbatimEnvironment{cppcode}{Verbatim}{
+  fontsize=\small,
+  frame=single,
+  framerule=0.6pt,
+  rulecolor=\color{CodeFrame},
+  numbers=left,
+  numbersep=8pt,
+  baselinestretch=1,
+  breaklines=true,
+  breaksymbolleft=,
+  breaksymbolright=,
+  xleftmargin=1.5em
+}
+
+\begin{document}
+
+\begin{center}
+  {\LARGE \textbf{C++ 12장 실습: 파일 입출력}}\\
+  \vspace{6pt}
+  {\large (text vs binary / fstream / file modes / read-write / stream state / random access)}
+\end{center}
+
+\vspace{8pt}
+
+\section*{학습 목표(슬라이드 기반)}
+\begin{GoalBox}
+\begin{enumerate}[leftmargin=18pt]
+  \item 텍스트 파일과 바이너리 파일의 차이를 안다.
+  \item C++ 표준 파일 입출력 라이브러리(\texttt{ifstream/ofstream/fstream})를 안다.
+  \item \texttt{<<, >>}로 간단히 텍스트 파일을 읽고 쓰는 방법을 안다.
+  \item 파일 모드(file mode)를 이해한다.
+  \item 텍스트 I/O 모드로 파일을 읽고 쓰는 방법을 안다.
+  \item 바이너리 I/O 모드로 파일을 읽고 쓰는 방법을 안다.
+  \item 텍스트 I/O와 바이너리 I/O 차이를 이해한다.
+  \item 파일 입출력 스트림의 상태를 검사하는 방법을 안다.
+  \item 임의 접근(random access)으로 파일을 읽고 쓰는 방법을 안다.
+\end{enumerate}
+\end{GoalBox}
+
+\section*{실습 운영 규칙}
+\begin{itemize}[leftmargin=18pt]
+  \item 모든 예제는 \texttt{main()} 포함, \textbf{독립 실행}입니다.
+  \item 윈도우 경로(\texttt{c:\textbackslash temp\textbackslash ...}) 대신, 수업에서는 \textbf{상대 경로}(\texttt{./data/...})를 사용합니다.
+  \item 바이너리 예제는 이미지 파일이 없어도 실습할 수 있도록 \textbf{일반 파일 복사} 버전도 제공합니다.
+  \item 텍스트 I/O에서 \texttt{\textbackslash n} 처리(윈도우의 \texttt{\textbackslash r\textbackslash n}) 차이를 꼭 관찰하세요.
+\end{itemize}
+
+\tableofcontents
+\newpage
+
+%=========================================================
+\section{텍스트 vs 바이너리: 핵심 차이(Enter, \textbackslash r\textbackslash n)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 텍스트 파일: ``문자''로 해석 가능한 데이터 중심(ASCII/Unicode). % p.4
+  \item 바이너리 파일: 문자로 해석되지 않는 바이트가 포함(이미지/오디오/문서/실행파일). % p.8~10
+  \item 윈도우 텍스트 파일은 줄바꿈을 \texttt{\textbackslash r\textbackslash n} 두 바이트로 저장하지만, 텍스트 I/O는 보통 \texttt{\textbackslash n}로 취급. % p.7, p.21
+  \item 바이너리 I/O는 바이트를 있는 그대로 읽고 씀(\texttt{ios::binary}). % p.28, p.35
+\end{itemize}
+\end{GoalBox}
+
+%=========================================================
+\section{파일 스트림 클래스: ifstream/ofstream/fstream}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item \texttt{<fstream>} 헤더 + \texttt{std} 네임스페이스. % p.14
+  \item \texttt{ifstream}: 읽기, \texttt{ofstream}: 쓰기, \texttt{fstream}: 읽기+쓰기. % p.11
+  \item 파일과 프로그램을 ``스트림''으로 연결하여 \texttt{>>}, \texttt{get/read}, \texttt{<<}, \texttt{put/write} 사용. % p.13
+\end{itemize}
+\end{GoalBox}
+
+%=========================================================
+\section{예제 12-1: 키보드 입력을 텍스트 파일로 저장(<<)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item \texttt{ofstream fout("student.txt");} 처럼 생성과 동시에 open 가능. % p.16~17
+  \item \texttt{if(!fout)} 또는 \texttt{if(!fout.is\_open())}로 열기 실패 검사. % p.16~18
+  \item 정수도 텍스트로 저장되며(숫자 문자로 변환), 다음에 \texttt{>>}로 다시 읽을 수 있음. % p.17
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L1\_write\_student\_text.cpp}
+\begin{cppcode}
+#include <iostream>
+#include <fstream>
+#include <string>
+using namespace std;
+
+/*
+[포인트]
+- 교재는 c:\temp\student.txt 같은 절대경로를 사용하지만,
+  수업에서는 프로젝트 폴더 기준 상대경로(./data/student.txt)를 권장.
+- 폴더가 없으면 파일 생성이 실패할 수 있으니, ./data 폴더를 미리 만들어 두기.
+*/
+
+int main() {
+    string name, dept;
+    int sid;
+
+    cout << "이름>> ";
+    cin >> name;
+    cout << "학번>> ";
+    cin >> sid;
+    cout << "학과>> ";
+    cin >> dept;
+
+    ofstream fout("./data/student.txt");
+    if(!fout) {
+        cout << "파일 열기 실패: ./data/student.txt\n";
+        return 0;
+    }
+
+    fout << name << '\n';
+    fout << sid  << '\n';
+    fout << dept << '\n';
+    fout.close();
+
+    cout << "저장 완료\n";
+}
+\end{cppcode}
+
+%=========================================================
+\section{예제 12-2: 텍스트 파일 읽기(>>)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item \texttt{>>}는 공백 기준으로 토큰을 읽는다(공백 포함 라인은 getline 사용). % 11장과 연결
+  \item 파일 열기 실패는 ``경로 오류/파일 없음''이 흔한 원인. % p.18
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L2\_read\_student\_text.cpp}
+\begin{cppcode}
+#include <iostream>
+#include <fstream>
+#include <string>
+using namespace std;
+
+int main() {
+    ifstream fin("./data/student.txt");
+    if(!fin) {
+        cout << "파일 열기 실패: ./data/student.txt\n";
+        return 0;
+    }
+
+    string name, dept;
+    int sid;
+
+    fin >> name;
+    fin >> sid;
+    fin >> dept;
+
+    cout << name << "\n" << sid << "\n" << dept << "\n";
+    fin.close();
+}
+\end{cppcode}
+
+%=========================================================
+\section{파일 모드(file mode)와 open()}
+\begin{GoalBox}
+\textbf{핵심 모드}
+\begin{itemize}[leftmargin=18pt]
+  \item \texttt{ios::in}: 읽기, \texttt{ios::out}: 쓰기
+  \item \texttt{ios::app}: 파일 끝에 덧붙이기(append) % p.20
+  \item \texttt{ios::trunc}: 기존 내용을 지우고 새로 쓰기(보통 ofstream 기본 동작) % p.19
+  \item \texttt{ios::binary}: 바이너리 I/O(텍스트 변환 금지) % p.20, p.28
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L3\_append\_mode.cpp}
+\begin{cppcode}
+#include <iostream>
+#include <fstream>
+using namespace std;
+
+/*
+[포인트]
+- ios::app : 항상 파일 끝에 쓴다.
+- ios::out | ios::app 로 열고 한 줄을 추가해 보자.
+*/
+
+int main() {
+    ofstream fout("./data/student.txt", ios::out | ios::app);
+    if(!fout) {
+        cout << "파일 열기 실패\n";
+        return 0;
+    }
+    fout << "tel:010-0000-0000\n";
+    fout.close();
+    cout << "append 완료\n";
+}
+\end{cppcode}
+
+%=========================================================
+\section{예제 12-3: get()으로 텍스트 파일을 바이트 단위 읽기(텍스트 I/O)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item \texttt{fin.get()}은 EOF(-1)까지 1바이트씩 읽는다. % p.21~23
+  \item \textbf{텍스트 I/O 모드}에서는 윈도우의 \texttt{\textbackslash r\textbackslash n}이 읽힐 때 \texttt{\textbackslash n}만 리턴되는 효과가 나타날 수 있음(교재 예: 바이트 수가 줄어듦). % p.21
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L4\_get\_text\_count.cpp}
+\begin{cppcode}
+#include <iostream>
+#include <fstream>
+using namespace std;
+
+/*
+[실습]
+- ./data/sample.txt 를 미리 만들어 두고 실행하세요.
+- (윈도우) 텍스트 모드에서 \r\n이 \n처럼 처리되면 카운트가 달라질 수 있음.
+*/
+
+int main() {
+    const char* file = "./data/sample.txt";
+    ifstream fin(file); // 디폴트: ios::in (텍스트)
+    if(!fin) {
+        cout << "열기 오류: " << file << "\n";
+        return 0;
+    }
+
+    int count = 0;
+    int c;
+    while((c = fin.get()) != EOF) {
+        cout.put((char)c);
+        count++;
+    }
+    cout << "\n읽은 바이트 수(텍스트 모드 count) = " << count << "\n";
+    fin.close();
+}
+\end{cppcode}
+
+%=========================================================
+\section{예제 12-4: 텍스트 파일 연결(한 파일 내용을 다른 파일 끝에 붙이기)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item \texttt{fstream}은 읽기/쓰기를 모두 지원. % p.24
+  \item 입력 파일을 \texttt{get()}으로 읽고 출력 파일에 \texttt{put()}으로 기록.
+  \item 출력 파일은 \texttt{ios::app}로 열어 ``끝에 덧붙이기''.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L5\_concat\_text\_files.cpp}
+\begin{cppcode}
+#include <iostream>
+#include <fstream>
+using namespace std;
+
+int main() {
+    const char* firstFile  = "./data/student.txt";
+    const char* secondFile = "./data/sample.txt";
+
+    fstream fout(firstFile, ios::out | ios::app);
+    if(!fout) { cout << "열기 오류: " << firstFile << "\n"; return 0; }
+
+    fstream fin(secondFile, ios::in);
+    if(!fin) { cout << "열기 오류: " << secondFile << "\n"; return 0; }
+
+    int c;
+    while((c = fin.get()) != EOF) {
+        fout.put((char)c);
+    }
+
+    fin.close();
+    fout.close();
+    cout << "연결(append) 완료\n";
+}
+\end{cppcode}
+
+%=========================================================
+\section{라인 단위 읽기: getline 2가지 방식(예제 12-5, 12-6)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item \texttt{fin.getline(char*, n)}: C 스타일 버퍼로 라인 읽기. % p.25~26
+  \item \texttt{getline(fin, string)}: 전역 함수로 string에 라인 읽기(더 안전). % p.25~27
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L6\_getline\_charbuf.cpp}
+\begin{cppcode}
+#include <iostream>
+#include <fstream>
+using namespace std;
+
+int main() {
+    ifstream fin("./data/sample.txt");
+    if(!fin) { cout << "열기 실패\n"; return 0; }
+
+    char buf[81]; // 한 줄 최대 80자 가정
+    while(fin.getline(buf, 81)) {
+        cout << buf << "\n";
+    }
+    fin.close();
+}
+\end{cppcode}
+
+\noindent\filetag{L6b\_getline\_string.cpp}
+\begin{cppcode}
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <vector>
+using namespace std;
+
+static void fileRead(vector<string>& v, ifstream& fin) {
+    string line;
+    while(getline(fin, line)) {
+        v.push_back(line);
+    }
+}
+
+static void search(const vector<string>& v, const string& word) {
+    for (int i = 0; i < (int)v.size(); i++) {
+        if (v[i].find(word) != string::npos)
+            cout << v[i] << "\n";
+    }
+}
+
+int main() {
+    ifstream fin("./data/words.txt");
+    if(!fin) { cout << "words.txt 열기 실패(./data/words.txt)\n"; return 0; }
+
+    vector<string> wordVector;
+    fileRead(wordVector, fin);
+    fin.close();
+
+    cout << "words.txt 파일을 읽었습니다.\n";
+    while(true) {
+        cout << "검색할 단어를 입력하세요 >> ";
+        string word;
+        getline(cin, word);
+        if(word == "exit") break;
+        search(wordVector, word);
+    }
+    cout << "프로그램을 종료합니다.\n";
+}
+\end{cppcode}
+
+%=========================================================
+\section{바이너리 I/O: get/put로 파일 복사(예제 12-7)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item \texttt{ios::binary}를 빼면(특히 윈도우) 줄바꿈 변환 등으로 \textbf{원본과 동일한 바이트 복사}가 깨질 수 있음. % p.29, p.35
+  \item 바이너리 파일뿐 아니라 텍스트 파일도 바이너리 모드로 복사 가능.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L7\_copy\_binary\_getput.cpp}
+\begin{cppcode}
+#include <iostream>
+#include <fstream>
+using namespace std;
+
+int main() {
+    const char* src  = "./data/src.bin";   // 아무 파일이나 OK (텍스트/바이너리)
+    const char* dest = "./data/dest.bin";
+
+    ifstream fsrc(src, ios::in | ios::binary);
+    if(!fsrc) { cout << "열기 오류: " << src << "\n"; return 0; }
+
+    ofstream fdest(dest, ios::out | ios::binary);
+    if(!fdest) { cout << "열기 오류: " << dest << "\n"; return 0; }
+
+    int c;
+    while((c = fsrc.get()) != EOF) {
+        fdest.put((char)c);
+    }
+
+    fsrc.close();
+    fdest.close();
+    cout << "복사 완료: " << src << " -> " << dest << "\n";
+}
+\end{cppcode}
+
+%=========================================================
+\section{read/write: 블록 단위 복사(예제 12-9)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item \texttt{read(buf, N)}는 최대 N바이트를 읽고, 실제 읽은 바이트는 \texttt{gcount()}로 확인. % p.30~32
+  \item \texttt{eof()}는 ``읽기 시도 이후''에 true가 될 수 있어, 루프 설계를 주의.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L8\_copy\_binary\_readwrite.cpp}
+\begin{cppcode}
+#include <iostream>
+#include <fstream>
+using namespace std;
+
+int main() {
+    const char* src  = "./data/src.bin";
+    const char* dest = "./data/dest_readwrite.bin";
+
+    ifstream fsrc(src, ios::in | ios::binary);
+    if(!fsrc) { cout << "열기 오류: " << src << "\n"; return 0; }
+
+    ofstream fdest(dest, ios::out | ios::binary);
+    if(!fdest) { cout << "열기 오류: " << dest << "\n"; return 0; }
+
+    char buf[1024];
+    while(true) {
+        fsrc.read(buf, sizeof(buf));
+        streamsize n = fsrc.gcount(); // 실제 읽은 바이트
+        if(n <= 0) break;
+        fdest.write(buf, n);
+    }
+
+    fsrc.close();
+    fdest.close();
+    cout << "블록 복사 완료\n";
+}
+\end{cppcode}
+
+%=========================================================
+\section{바이너리 데이터 저장/복원: int 배열 + double (예제 12-10)}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item 숫자를 텍스트로 저장하면 ``문자''로 변환되어 저장(사람이 읽기 쉬움).
+  \item 바이너리로 저장하면 메모리의 바이트가 그대로 기록(빠르고 크기 작음) % p.33
+  \item 단, 바이너리는 엔디안/타입 크기/구조체 패딩에 영향을 받을 수 있어 \textbf{호환성 이슈}가 존재.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L9\_save\_load\_binary\_numbers.cpp}
+\begin{cppcode}
+#include <iostream>
+#include <fstream>
+using namespace std;
+
+int main() {
+    const char* file = "./data/data.dat";
+
+    int n[10] = {0,1,2,3,4,5,6,7,8,9};
+    double d = 3.15;
+
+    // 저장
+    ofstream fout(file, ios::out | ios::binary);
+    if(!fout) { cout << "열기 오류\n"; return 0; }
+    fout.write((char*)n, sizeof(n));
+    fout.write((char*)(&d), sizeof(d));
+    fout.close();
+
+    // 값 변경(복원 확인용)
+    for(int i=0;i<10;i++) n[i] = 99;
+    d = 8.15;
+
+    // 복원
+    ifstream fin(file, ios::in | ios::binary);
+    if(!fin) { cout << "열기 오류\n"; return 0; }
+    fin.read((char*)n, sizeof(n));
+    fin.read((char*)(&d), sizeof(d));
+    fin.close();
+
+    for(int i=0;i<10;i++) cout << n[i] << ' ';
+    cout << "\n" << d << "\n";
+}
+\end{cppcode}
+
+%=========================================================
+\section{스트림 상태 검사: good/fail/bad/eof}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item \texttt{if(!fin)}는 \texttt{fail()}을 포함한 상태 이상을 의미하는 빠른 체크.
+  \item \texttt{eof()}는 ``EOF를 이미 만났는가''이며, 보통 \textbf{읽기 시도 이후}에 true가 된다. % p.22, p.31
+  \item 안전한 패턴: \texttt{while(getline(fin,line))} / \texttt{while(fin.read(...), fin.gcount()>0)}.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L10\_stream\_state.cpp}
+\begin{cppcode}
+#include <iostream>
+#include <fstream>
+#include <string>
+using namespace std;
+
+int main() {
+    ifstream fin("./data/sample.txt");
+    if(!fin) { cout << "open fail\n"; return 0; }
+
+    string line;
+    while(true) {
+        if(!getline(fin, line)) {
+            if(fin.eof()) cout << "EOF 도달\n";
+            else cout << "읽기 실패(fail/bad)\n";
+            break;
+        }
+        cout << line << "\n";
+    }
+}
+\end{cppcode}
+
+%=========================================================
+\section{임의 접근(Random Access): seekg/tellg, seekp/tellp}
+\begin{GoalBox}
+\textbf{핵심}
+\begin{itemize}[leftmargin=18pt]
+  \item \texttt{tellg()} / \texttt{tellp()} : 현재 파일 포인터 위치(바이트 오프셋) % 11장의 개념 확장
+  \item \texttt{seekg(pos)} / \texttt{seekp(pos)} : 파일 포인터 이동
+  \item 텍스트 파일은 OS의 줄바꿈 변환 때문에 정확한 바이트 위치가 직관적이지 않을 수 있어,
+        \textbf{임의 접근은 바이너리 모드에서 더 안전}.
+\end{itemize}
+\end{GoalBox}
+
+\noindent\filetag{L11\_random\_access\_binary.cpp}
+\begin{cppcode}
+#include <iostream>
+#include <fstream>
+using namespace std;
+
+/*
+[실습]
+- data.dat(L9)이 생성된 뒤에 실행하면 좋습니다.
+- 첫 int 10개(40바이트) + double(8바이트) 구조.
+- 특정 위치로 이동하여 일부만 읽어봅니다.
+*/
+
+int main() {
+    const char* file = "./data/data.dat";
+    ifstream fin(file, ios::in | ios::binary);
+    if(!fin) { cout << "open fail\n"; return 0; }
+
+    // 5번째 int(0-based index 4) 읽기: offset = 4 * sizeof(int)
+    fin.seekg(4 * (int)sizeof(int), ios::beg);
+    int x;
+    fin.read((char*)&x, sizeof(x));
+    cout << "5번째 int = " << x << "\n";
+
+    // double 읽기: offset = sizeof(int)*10
+    fin.seekg(10 * (int)sizeof(int), ios::beg);
+    double d;
+    fin.read((char*)&d, sizeof(d));
+    cout << "double = " << d << "\n";
+
+    fin.close();
+}
+\end{cppcode}
+
+\section*{마무리 체크리스트}
+\begin{GoalBox}
+\begin{itemize}[leftmargin=18pt]
+  \item 텍스트/바이너리 파일의 차이와 줄바꿈(\texttt{\textbackslash r\textbackslash n}) 이슈를 설명할 수 있는가?
+  \item \texttt{ifstream/ofstream/fstream}의 역할 차이를 말할 수 있는가?
+  \item 파일 모드(\texttt{ios::in/out/app/trunc/binary})를 상황에 맞게 선택할 수 있는가?
+  \item get/put(1바이트)과 read/write(블록)의 차이를 설명할 수 있는가?
+  \item \texttt{eof()}를 루프 조건으로 쓰는 것이 위험한 이유를 말할 수 있는가?
+  \item 바이너리 저장의 장점/단점(호환성)을 말할 수 있는가?
+  \item \texttt{tellg/seekg}로 임의 접근을 구현할 수 있는가?
+\end{itemize}
+\end{GoalBox}
+
+\end{document}

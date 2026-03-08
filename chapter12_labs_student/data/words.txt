@@ -1,0 +1,6 @@
+apple
+banana
+cherry
+pineapple
+computer science
+C++
