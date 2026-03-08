@@ -12,11 +12,9 @@ int main() {
     char line[10];
 
     std::cout << "Enter a full sentence: ";
-
     std::cin.getline(line, 10);
-
     std::cout << "You entered: [" << line << "]\n";
-
+   
     return 0;
 }
 
