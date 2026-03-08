@@ -4,15 +4,16 @@
 
 /*
 [핵심 정리]
-1) `>>`는 필요한 토큰만 읽고, 엔터(`\n`)는 버퍼에 남길 수 있다.
-2) 직후 `std::getline`을 호출하면 남은 `\n`을 읽어 빈 문자열이 될 수 있다.
-3) 해결법: `std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');`
-4) 암기: `>>` 다음에 `getline`이면 `ignore` 한 번.
+1) `std::string`은 C++ 표준 문자열 타입으로, 길이를 자동 관리해 `char[]`보다 다루기 쉽다.
+2) 실무 기본 문자열 입력은 `std::string + std::getline` 조합이다.
+3) 다만 앞에서 `>>`를 쓰면 엔터(`\n`)가 버퍼에 남아, 다음 `getline`이 빈 문자열이 될 수 있다.
+4) 해결은 `std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');` 한 줄이다.
+5) 암기: `>>` 다음에 `getline`이면 `ignore` 한 번.
 */
 
 int main() {
     int age;
-    std::string intro;
+    std::string intro; // 공백 포함 문장 입력에 적합한 문자열 타입
 
     std::cout << "Enter age: ";
     std::cin >> age;
