@@ -21,6 +21,7 @@ int main() {
 
     delete p;         // (2) 반환
     // cout << *p;     // (금지) delete 후 접근 위험
-
+    p = nullptr;      // (실무 팁) delete 후 포인터를 nullptr로 설정
+    
     return 0;
 }

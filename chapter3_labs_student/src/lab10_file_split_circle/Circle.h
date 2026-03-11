@@ -1,4 +1,8 @@
-#ifndef CIRCLE_H
+#ifndef CIRCLE_H  
+// include guard 시작, 헤더 파일 여러번 포함되어도 내부 선언이 중복되지 않도록 보호
+// 즉, 헤더를 여러 .cpp에서 혹은 다른 헤더들이 교차로 include할 때 중복 선언·재정의 문제를 막는 C/C++ 표준 관행입니다.
+
+// CIRCLE_H라는 매크로가 정의되어 있지 않다면 아래 코드 실행.
 #define CIRCLE_H
 
 /*

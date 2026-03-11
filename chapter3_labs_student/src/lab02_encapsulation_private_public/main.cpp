@@ -8,6 +8,11 @@ using namespace std;
 1) 멤버 변수를 private로 숨기면, 외부에서 마음대로 값을 바꿀 수 없다.
 2) 대신 public 함수(getter/setter 또는 의미 있는 함수)로만 상태를 다룬다.
 3) setter에서 유효성 검사(예: r>0)를 넣어 객체 상태(불변식)를 보호할 수 있다.
+
+생성자 초기화 리스트 (C(int v) : x(v))
+x가 생성될 때 바로 v로 초기화
+생성자 본문에서 대입 (C(int v) { x = v; })
+x가 우선 기본 생성(또는 초기값)된 뒤, 본문에서 다시 대입
 ------------------------------------------------------------
 */
 
@@ -17,7 +22,10 @@ private:
 
 public:
     // 생성자: 객체 생성 순간 반지름 초기화
-    Circle(int r) { radius = r; }
+   // Circle(int r) { radius = r; }
+    Circle(int r) : radius(r) { // 생성자 초기화 리스트 사용
+        // radius가 r로 초기화된 상태에서 본문 실행
+    }    
 
     // getter: radius를 읽는 인터페이스
     int getRadius() const { return radius; }
