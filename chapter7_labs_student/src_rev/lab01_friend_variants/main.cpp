@@ -33,6 +33,8 @@ public:
     Rect(int w, int h) : width(w), height(h) {}
 
     // (1) 외부 함수 friend
+    // ::equals 는 "전역 영역에 있는 equals 함수"를 뜻한다.
+    // 즉 Rect의 멤버가 아니라, 위에서 선언한 전역 함수를 friend로 지정한다.
     friend bool ::equals(Rect r, Rect s);
 
     // (2) 다른 클래스의 특정 멤버 함수 friend

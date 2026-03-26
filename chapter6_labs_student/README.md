@@ -3,6 +3,7 @@
 
 ## 폴더 구조
 - `src/` : 실습 코드(랩별 폴더, 주석으로 설명 포함)
+- `src_rev/` : 비슷한 개념을 묶어 개수를 줄인 재구성 실습 코드
 - `tasks/` : 체크퀴즈 + 미니과제
 - `answers/` : 제출 템플릿
 - `docs/` : LaTeX 핸드아웃(Verbatim 안정판)
@@ -24,6 +25,17 @@
 14. lab14_math_static_class
 15. lab15_count_objects_static
 16. lab16_static_cannot_access_this *(에러 확인용 포함)*
+
+## `src_rev` 권장 실습 순서
+1. lab01_overloading_core
+2. lab02_default_params_core
+3. lab03_ambiguity_cases
+4. lab04_default_ctor_vector
+5. lab05_static_shared_members
+6. lab06_static_utilities_and_limits
+
+`src_rev`는 원본 16개 lab의 핵심 내용을 빠짐없이 유지하면서,
+오버로딩 / 디폴트 매개변수 / 모호성 / static 흐름으로 다시 묶은 축약 트랙입니다.
 
 ## 컴파일/실행
 각 lab 폴더로 이동해서 컴파일:
