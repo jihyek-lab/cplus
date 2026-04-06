@@ -18,6 +18,22 @@ using namespace std;
 해결
 - B와 C가 A를 virtual public A로 상속하면,
   D 안에 A가 "1개만" 존재하도록 강제한다.
+
+  ////////////////////////////////
+  # 10. virtual 상속으로 해결
+- 다이아몬드 상속에서 공통 기반 클래스가 하나만 존재하도록 만드는 방법이 `virtual` 상속이다.
+
+```cpp
+class Bv : virtual public A {};
+class Cv : virtual public A {};
+class D_good : public Bv, public Cv {};
+```
+
+핵심:
+- `virtual` 상속을 쓰면 `A`를 공유한다.
+- 그래서 `D_good` 안에는 `A`가 하나만 들어간다.
+- 결과적으로 `d.x` 같은 접근이 모호하지 않다.
+
 ------------------------------------------------------------
 */
 

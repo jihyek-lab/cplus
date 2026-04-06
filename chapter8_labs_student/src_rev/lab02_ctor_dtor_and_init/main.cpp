@@ -19,13 +19,17 @@ using namespace std;
 
 class A {
 public:
+    // 강의 코멘트:
+    // 기본 생성자 A()를 일부러 두지 않았다.
+    // 그래서 파생 클래스는 어떤 A를 만들지 반드시 밝혀야 한다.
     A(int x) { cout << "Ctor A(int) " << x << "\n"; }
     ~A() { cout << "Dtor A\n"; }
 };
 
 class B : public A {
 public:
-    // Base에 기본 생성자가 없으므로 반드시 초기화 리스트 필요
+    // 강의 코멘트:
+    // 부모 생성자는 함수 본문 전에 먼저 호출되어야 하므로 초기화 리스트에서 지정한다.
     B(int x) : A(x + 3) { cout << "Ctor B(int) " << x << "\n"; }
     ~B() { cout << "Dtor B\n"; }
 };
@@ -37,6 +41,10 @@ public:
 };
 
 int main() {
+    // 강의 코멘트:
+    // 객체 하나를 만들면 C -> B -> A 순서가 아니라,
+    // "기반부터" A -> B -> C 순서로 생성된다.
+    // 소멸은 반대로 C -> B -> A 이다.
     C c;
     return 0;
 }

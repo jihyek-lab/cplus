@@ -1,7 +1,7 @@
 #include <iostream>
 using namespace std;
 
-/*
+/* - 하나의 클래스가 여러 부모 클래스를 동시에 상속받는 것
 [Lab10] 다중 상속: Calculator = Adder + Subtractor
 ------------------------------------------------------------
 핵심

@@ -19,6 +19,7 @@ using namespace std;
 */
 
 class Rect;                  // 전방 선언
+// Rect가 아직 완전히 정의되기 전에 함수 원형과 RectManager 선언에 Rect 이름이 필요하므로 전방 선언을 먼저 둡니다.
 bool equals(Rect r, Rect s); // 외부 함수 원형
 
 class RectManager {
@@ -33,8 +34,6 @@ public:
     Rect(int w, int h) : width(w), height(h) {}
 
     // (1) 외부 함수 friend
-    // ::equals 는 "전역 영역에 있는 equals 함수"를 뜻한다.
-    // 즉 Rect의 멤버가 아니라, 위에서 선언한 전역 함수를 friend로 지정한다.
     friend bool ::equals(Rect r, Rect s);
 
     // (2) 다른 클래스의 특정 멤버 함수 friend

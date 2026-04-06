@@ -12,6 +12,11 @@ using namespace std;
 
 주의
 - average는 size==0 방어 필요(미니과제에서 추가).
+
+이론 연결
+- 추상 클래스는 "무엇을 할 수 있어야 하는지"를 정의한다.
+- 구현 클래스는 "그 기능을 어떻게 할지"를 책임진다.
+- 그래서 사용자 코드는 GoodCalc가 아니라 Calculator 타입에 의존할 수 있다.
 ------------------------------------------------------------
 */
 
@@ -29,6 +34,7 @@ public:
     int subtract(int a, int b) override { return a - b; }
     double average(int a[], int size) override {
         double sum = 0;
+        // average의 핵심은 공통 인터페이스를 지키면서 세부 계산만 구현하는 것이다.
         for (int i = 0; i < size; i++) sum += a[i];
         return sum / size;
     }
@@ -37,6 +43,7 @@ public:
 int main() {
     int a[] = {1,2,3,4,5};
     Calculator* p = new GoodCalc();
+    // 사용하는 쪽은 Calculator 인터페이스만 알면 된다.
     cout << p->add(2,3) << "\n";
     cout << p->subtract(2,3) << "\n";
     cout << p->average(a,5) << "\n";
