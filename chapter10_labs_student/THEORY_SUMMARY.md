@@ -437,12 +437,33 @@ dic["apple"] = "사과";
 
 ## 22. `map`의 기본 사용
 
+먼저 `map`을 볼 때는 아래 그림을 머릿속에 두면 좋습니다.
+
+- `map`의 원소 하나는 `(key, value)` 한 쌍이다
+- key는 중복될 수 없다
+- key를 기준으로 정렬된 상태를 유지한다
+- 배열처럼 번호로 찾는 구조가 아니라 key로 찾는 구조다
+
+즉, `map<string, string>`은  
+"문자열 key에 문자열 value를 연결하는 표"라고 생각하면 이해가 쉽습니다.
+
 삽입 방법:
 
 ```cpp
 dic["apple"] = "사과";
 dic.insert(make_pair("love", "사랑"));
 ```
+
+### `pair`와 `make_pair`
+
+위 코드에서 `insert(make_pair(...))`가 왜 나오는지도 이해해 두면 좋습니다.
+
+- `pair`는 두 값을 함께 담는 자료형이다
+- `make_pair(a, b)`는 두 값을 하나의 `pair` 객체로 만들어 주는 표준 함수다
+- `map` 원소 하나가 `(key, value)` 쌍이므로 `insert()`에 넣을 때 `pair`가 필요하다
+
+즉, `make_pair("love", "사랑")`는  
+`("love", "사랑")` 한 쌍을 만들어 `insert()`에 넘기는 역할을 합니다.
 
 조회 방법:
 

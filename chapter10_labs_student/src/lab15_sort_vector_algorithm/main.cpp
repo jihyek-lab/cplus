@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
+#include <functional>
 using namespace std;
 
 /*
@@ -10,9 +11,10 @@ using namespace std;
 - sort는 <algorithm> 헤더의 전역 함수 템플릿
 - sort(v.begin(), v.end())에서 end는 "마지막 다음" (반열린구간 [begin,end))
 - 기본은 오름차순(원소의 operator< 사용)
+- sort(v.begin(), v.end(), greater<int>())는 내림차순 정렬
 
 확장
-- 내림차순은 sort(..., greater<int>()) 같은 비교자 사용 가능(미니과제)
+- 비교자를 주면 정렬 기준을 바꿀 수 있다.
 
 이론 연결
 - sort는 컨테이너의 멤버 함수가 아니라 반복자 범위를 받는 알고리즘 함수다.
@@ -28,8 +30,16 @@ int main() {
         v.push_back(n);
     }
 
+    // 기본 sort는 오름차순 정렬
     sort(v.begin(), v.end());
+    cout << "오름차순: ";
+    for(vector<int>::iterator it=v.begin(); it!=v.end(); it++)
+        cout << *it << ' ';
+    cout << "\n";
 
+    // greater<int>() 비교자를 주면 내림차순 정렬
+    sort(v.begin(), v.end(), greater<int>());
+    cout << "내림차순: ";
     for(vector<int>::iterator it=v.begin(); it!=v.end(); it++)
         cout << *it << ' ';
     cout << "\n";

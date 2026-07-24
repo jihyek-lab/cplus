@@ -13,9 +13,17 @@ using namespace std;
   기존 재고를 갱신하는 흐름도 생각해야 한다.
 
 핵심 정리
+- map 원소 하나는 (key, value) 한 쌍(pair)이다.
+- 여기서는 key가 상품명이고, value가 가격과 재고를 담은 Item 객체다.
+- key는 중복될 수 없으므로 같은 상품명은 하나의 항목으로 관리된다.
 - insert()는 새 키 추가에 적합하다.
 - 이미 있는 상품을 갱신하려면 find() 후 second를 수정하는 방식이 자연스럽다.
 - erase(key)는 삭제된 원소 개수를 반환한다.
+
+make_pair 설명
+- map 원소 하나는 (상품명, Item 객체) 한 쌍(pair)이다.
+- make_pair(name, Item(...))는 이 두 값을 하나로 묶어서 insert()에 전달한다.
+- 즉, "키와 값이 함께 들어 있는 한 묶음"을 만들 때 쓰는 함수다.
 ------------------------------------------------------------
 */
 
@@ -47,6 +55,7 @@ void addOrUpdateItem(map<string, Item>& stock, const string& name, int price, in
     map<string, Item>::iterator it = stock.find(name);
 
     if (it == stock.end()) {
+        // 새 상품이면 (상품명, Item 객체) pair를 만들어 map에 삽입한다.
         stock.insert(make_pair(name, Item(price, count)));
         cout << name << " 새 상품 등록 완료\n";
     } else {

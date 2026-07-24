@@ -13,13 +13,27 @@ using namespace std;
   조회 전용 상황에서는 find() 습관이 중요하다.
 
 핵심 정리
+- map 원소 하나는 (key, value) 한 쌍(pair)이다.
+- key는 중복될 수 없고, key 기준으로 자동 정렬된다.
+- map은 배열처럼 "몇 번째 칸"으로 찾는 구조가 아니라,
+  "이 key에 대응하는 값이 무엇인가?"를 찾는 구조다.
 - dic.insert(make_pair(key, value)) : 삽입
 - dic[key] = value                  : 삽입 또는 수정
 - dic.find(key)                     : 있으면 iterator, 없으면 end()
+- dic.size()                        : 저장된 key-value 쌍의 개수
+
+make_pair 설명
+- make_pair(a, b)는 pair 객체를 만들어 주는 표준 함수다.
+- map의 한 원소는 사실상 (key, value) 한 쌍(pair)이므로,
+  insert()에 넣을 "키-값 묶음"이 필요할 때 make_pair를 자주 사용한다.
+- 즉, make_pair("love", "사랑")는
+  "love"와 "사랑"을 하나의 쌍으로 묶어서 map에 넣기 좋게 만드는 함수라고 이해하면 된다.
 
 이론 연결
 - map도 템플릿 클래스이므로 키 타입과 값 타입을 함께 지정한다.
 - 사전, 전화번호부, 상품명-가격처럼 "이름표로 찾는 문제"에 잘 맞는다.
+- `map<string, string>`은
+  "문자열 key에 문자열 value를 연결하는 표"라고 생각하면 이해하기 쉽다.
 ------------------------------------------------------------
 */
 
@@ -46,8 +60,11 @@ void searchWord(const map<string, string>& dic, const string& eng) {
 int main() {
     map<string, string> dic;
 
+    // make_pair는 (키, 값) 두 개를 하나의 pair로 묶어 insert()에 전달한다.
     dic.insert(make_pair("love", "사랑"));
     dic.insert(make_pair("apple", "사과"));
+
+    // []는 pair를 직접 만들지 않고도 삽입/수정을 간단히 표현할 수 있다.
     dic["cherry"] = "체리";
     dic["school"] = "학교";
 

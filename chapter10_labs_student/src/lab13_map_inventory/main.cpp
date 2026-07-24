@@ -8,8 +8,13 @@ using namespace std;
 ------------------------------------------------------------
 핵심
 - map의 value를 객체로 두면 작은 DB처럼 동작
+- map 원소 하나는 (상품명, Item 객체) 한 쌍(pair)이다.
+- key인 상품명은 중복될 수 없고, key 기준으로 정렬된다.
+- 즉, "상품명으로 Item 정보를 찾는 구조"라고 보면 된다.
 - erase(key)는 삭제 성공 여부를 0/1로 반환
 - 조회할 때 stock[name]는 없으면 기본 Item 생성 -> find 습관 권장
+- make_pair(name, Item(...))는 상품명과 Item 객체를 하나의 pair로 묶어
+  insert()에 넘길 때 사용
 
 주의
 - 이 예제는 cin만 쓰므로 공백 포함 상품명 입력은 안 됨(확장 과제 가능)
@@ -42,6 +47,7 @@ int main() {
         case 1:
             cout << "상품명, 가격, 개수 입력>>";
             cin >> name >> price >> count;
+            // map에 넣을 때는 (키, 값) 형태의 한 쌍이 필요하다.
             stock.insert(make_pair(name, Item(price, count)));
             break;
         case 2:

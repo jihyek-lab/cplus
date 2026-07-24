@@ -17,6 +17,7 @@ using namespace std;
 - map<K,V>는 키로 값을 찾는 자료구조(정렬됨)
 - map::operator[]는 없으면 삽입하므로 find 사용 습관
 - sort는 [begin, end) 반열린 구간 사용
+- make_pair(a, b)는 두 값을 하나의 pair로 묶어 insert()에 전달할 때 쓰는 함수
 ------------------------------------------------------------
 주의 포인트
 - map의 []는 조회용으로 쓰면 의도치 않은 삽입이 발생할 수 있다.
@@ -31,6 +32,8 @@ void printMap(map<string,int>& m) {
 int main() {
     // (1) map 기본
     map<string,string> dic;
+
+    // map.insert()는 (키, 값) 형태의 pair를 받으므로 make_pair를 자주 사용한다.
     dic.insert(make_pair("love","사랑"));
     dic["cherry"] = "체리";
 
@@ -42,6 +45,7 @@ int main() {
     map<string,int> priceMap;
     priceMap["붕어빵"] = 2000;
     priceMap["잉어빵"] = 2500;
+    // ("국화빵", 3000) 한 쌍을 만들어 삽입
     priceMap.insert(make_pair("국화빵", 3000));
     printMap(priceMap);
 
