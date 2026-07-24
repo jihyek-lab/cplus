@@ -17,6 +17,7 @@
 7. lab07_pure_virtual_intro
 8. lab08_goodcalc_abstract
 9. lab09_adder_subtractor_template_method
+10. lab10_campus_notification_system
 
 ## 컴파일/실행
 각 lab 폴더에서:

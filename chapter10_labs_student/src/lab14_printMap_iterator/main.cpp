@@ -9,6 +9,10 @@ using namespace std;
 핵심
 - map<K,V>::iterator it
 - it->first (키), it->second (값)
+
+이론 연결
+- map도 begin(), end()를 통해 전체 순회할 수 있다.
+- iterator에서 `it->first`는 키, `it->second`는 값이라는 쌍(pair) 구조를 기억하면 된다.
 ------------------------------------------------------------
 */
 
